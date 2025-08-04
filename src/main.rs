@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 
 pub mod utils;
+pub mod enums;
 
 fn main() {
 
@@ -23,4 +24,5 @@ fn main() {
     let age: i32 = age.trim().parse().expect("Introduce un número válido");
 
     
-    println!("El tmp es: {}", utils::metrics::calculate_tmb(weight, height, age)) }
+    println!("El tmp es: {}", utils::metrics::calculate_tdee(weight, height, age)) 
+}
