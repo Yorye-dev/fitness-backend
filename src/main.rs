@@ -2,6 +2,7 @@ use std::io::{self, Write};
 
 pub mod utils;
 pub mod enums;
+pub mod models;
 
 fn main() {
 
