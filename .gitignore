@@ -1,4 +1,5 @@
 /target
 todo.md
-TODO.md 
+TODO.md
+*.env
 doc/
