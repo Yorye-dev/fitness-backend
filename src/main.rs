@@ -1,10 +1,19 @@
 use std::io::{self, Write};
+use dotenv::dotenv;
+use std::env;
 
 pub mod utils;
 pub mod enums;
 pub mod models;
+pub mod congfig;
 
 fn main() {
+
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("Error en .env falta DATABASE_URL");
+
+    println!("{}", database_url);
 
     println!("Introduce la altura: ");
     io::stdout().flush().unwrap();
@@ -24,6 +33,8 @@ fn main() {
     io::stdin().read_line(&mut age).expect("Error al introducir la edad");
     let age: i32 = age.trim().parse().expect("Introduce un número válido");
 
+    // Conexión con la bdd
     
-    println!("El tmp es: {}", utils::metrics::calculate_tdee(weight, height, age)) 
+    //config
+    println!("El tmp es: {}", utils::metrics::calculate_tdee(weight, height, age))
 }
