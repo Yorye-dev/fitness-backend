@@ -7,13 +7,16 @@ pub mod enums;
 pub mod models;
 pub mod congfig;
 
-fn main() {
+#[tokio::main]
+async fn main() {
 
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("Error en .env falta DATABASE_URL");
 
     println!("{}", database_url);
+
+    let _pool = congfig::database::init_db_pg_pool(&database_url).await.unwrap();
 
     println!("Introduce la altura: ");
     io::stdout().flush().unwrap();
