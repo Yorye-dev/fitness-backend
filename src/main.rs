@@ -6,6 +6,7 @@ pub mod utils;
 pub mod enums;
 pub mod models;
 pub mod congfig;
+pub mod repositories;
 
 #[tokio::main]
 async fn main() {
