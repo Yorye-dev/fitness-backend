@@ -10,25 +10,27 @@ pub struct UserRepository<'a> {
 impl<'a> UserRepository<'a> {
 
     pub async fn create_user(&self, user: &User) -> Result<User, sqlx::Error> {
-        sqlx::query!(
+        let row = sqlx::query_as!(
+            User,
             r#"
             INSERT INTO users (id, username, email, password_hash, age, sex, height, weight, activity_level)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, username, email, password_hash, age, sex, height_cm, weight_kg, activity_level, created_at
             "#,
-            id
-            username,
-            email,
-            password_hash,
-            age,
-            sex,
-            height_cm,
-            weight_kg,
-            activity_level,
-            now
+            user.id,
+            user.username,
+            user.email,
+            user.password_hash,
+            user.age,
+            user.sex,
+            user.height,
+            user.weight,
+            user.activity_level,
+            user.created_at
         )
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
-        Ok(user_id)
+        Ok(row)
     }
 }
