@@ -1,12 +1,17 @@
 use std::io::{self, Write};
 use dotenv::dotenv;
+use models::user::{self, User};
 use std::env;
+use uuid::Uuid;
 
 pub mod utils;
 pub mod enums;
 pub mod models;
 pub mod congfig;
 pub mod repositories;
+
+use repositories::user_repository::UserRepository;
+use crate::enums::activity_level;
 
 #[tokio::main]
 async fn main() {
@@ -18,6 +23,27 @@ async fn main() {
     println!("{}", database_url);
 
     let _pool = congfig::database::init_db_pg_pool(&database_url).await.unwrap();
+
+    let user = User {
+    id: Uuid::new_v4(),
+    username: "jorge".into(),
+    password_hash: "hashed_password".into(),
+    age: 28,
+    sex: "M".into(),
+    height: 180,
+    weight: 75.0,
+    activity_level: activity_level::ActivityLevel::Sedentary,
+    };
+
+    // Mapear de UserDto a User (ya con UUID y timestamp generados)
+    //let user: User = dto.into();
+    //
+    let repo = UserRepository::new(&_pool);
+
+    match repo.create_user(&user).await {
+        Ok(u) => println!("✅ Usuario creado: {:?}", u),
+        Err(e) => eprintln!("❌ Error: {}", e),
+    }
 
     println!("Introduce la altura: ");
     io::stdout().flush().unwrap();

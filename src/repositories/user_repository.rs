@@ -7,15 +7,21 @@ pub struct UserRepository<'a> {
     pool: &'a Pool<Postgres>
 }
 
+impl UserRepository {
+    pub fn new(pool: &Pool<Postgres>) -> Self {
+        Self { pool }
+    }
+}
+
 impl<'a> UserRepository<'a> {
 
     pub async fn create_user(&self, user: &User) -> Result<User, sqlx::Error> {
         let row = sqlx::query_as!(
             User,
             r#"
-            INSERT INTO users (id, username, email, password_hash, age, sex, height, weight, activity_level)
+            INSERT INTO 00_user (id, username, email, password_hash, age, sex, height, weight, activity_level)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, username, email, password_hash, age, sex, height_cm, weight_kg, activity_level, created_at
+            RETURNING id, username, password_hash, age, sex, height, weight, activity_level, created_at
             "#,
             user.id,
             user.username,
