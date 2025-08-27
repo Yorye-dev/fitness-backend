@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use dotenv::dotenv;
-use models::user::{self, User};
+use models::user::{User};
 use std::env;
 use uuid::Uuid;
 
@@ -25,20 +25,20 @@ async fn main() {
     let _pool = congfig::database::init_db_pg_pool(&database_url).await.unwrap();
 
     let user = User {
-    id: Uuid::new_v4(),
+    id: Uuid::new_v4().to_string(),
     username: "jorge".into(),
     password_hash: "hashed_password".into(),
     age: 28,
     sex: "M".into(),
     height: 180,
     weight: 75.0,
-    activity_level: activity_level::ActivityLevel::Sedentary,
+    activity_level: activity_level::ActivityLevel::Sedentary.as_string(),
     };
 
     // Mapear de UserDto a User (ya con UUID y timestamp generados)
     //let user: User = dto.into();
     //
-    let repo = UserRepository::new(&_pool);
+    let repo = UserRepository::new(_pool);
 
     match repo.create_user(&user).await {
         Ok(u) => println!("✅ Usuario creado: {:?}", u),
