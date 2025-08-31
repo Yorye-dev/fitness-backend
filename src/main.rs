@@ -26,7 +26,7 @@ async fn main() {
 
     let user = User {
     id: Uuid::new_v4().to_string(),
-    username: "jorge".into(),
+    username: "ramon".into(),
     password_hash: "hashed_password".into(),
     age: 28,
     sex: "M".into(),
@@ -38,12 +38,20 @@ async fn main() {
     // Mapear de UserDto a User (ya con UUID y timestamp generados)
     //let user: User = dto.into();
     //
-    let repo = UserRepository::new(_pool);
+    let repo = UserRepository::new(_pool.clone());
 
-    match repo.create_user(&user).await {
+    match repo.save_user(&user).await {
         Ok(u) => println!("✅ Usuario creado: {:?}", u),
         Err(e) => eprintln!("❌ Error: {}", e),
     }
+
+    let repo = UserRepository::new(_pool.clone());
+    
+    match repo.get_public_user_by_username(&user.username).await {
+        Ok(u) => println!("Este es el usuario: {:?}", u),
+        Err(e) => println!("ERROR: {}", e),
+    }
+
 
     println!("Introduce la altura: ");
     io::stdout().flush().unwrap();
