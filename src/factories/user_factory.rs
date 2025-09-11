@@ -1,30 +1,27 @@
 use uuid::Uuid;
-use chrono::Utc;
-use bcrypt::{hash, DEFAULT_COST};
 
-use crate::models::User;
-use crate::dto::RegisterUserDto;
+use crate::models::user::User;
+use crate::dtos::register_user_dto::RegisterUserDto;
+use crate::utils::password_utils::calculate_hash;
 
 pub struct UserFactory;
 
 impl UserFactory {
-    pub fn create_user_from_dto(dto: RegisterUserDto) -> Result<User, bcrypt::BcryptError> {
+    pub fn create_user_from_dto(dto: RegisterUserDto) -> User{
         
         // TODO: Sustituri por un llamada a los helpers.
 
-        let password_hash = hash(dto.password, DEFAULT_COST)?;
+        let password_hash = calculate_hash(&dto.plain_password).unwrap();
 
-        Ok(User {
-            id: Uuid::new_v4(),
+        User {
+            id: Uuid::new_v4().to_string(),
             username: dto.username,
-            email: dto.email,
             password_hash,
             age: dto.age,
             sex: dto.sex,
             height: dto.height,
             weight: dto.weight,
             activity_level: dto.activity_level,
-            created_at: Utc::now(),
-        })
+        }
     }
 }

@@ -1,17 +1,20 @@
-use std::io::{self, Write};
-use dotenv::dotenv;
-use models::user::{User};
-use std::env;
-use uuid::Uuid;
-
 pub mod utils;
 pub mod enums;
 pub mod models;
 pub mod congfig;
 pub mod repositories;
+pub mod dtos;
+pub mod factories;
+
+use std::io::{self, Write};
+use dotenv::dotenv;
+use models::user::{User};
+use dtos::register_user_dto::RegisterUserDto;
+
 
 use repositories::user_repository::UserRepository;
 use crate::enums::activity_level;
+use crate::factories::user_factory::UserFactory;
 
 #[tokio::main]
 async fn main() {
@@ -24,16 +27,18 @@ async fn main() {
 
     let _pool = congfig::database::init_db_pg_pool(&database_url).await.unwrap();
 
-    let user = User {
-    id: Uuid::new_v4().to_string(),
-    username: "ramon".into(),
-    password_hash: "hashed_password".into(),
-    age: 28,
-    sex: "M".into(),
-    height: 180,
-    weight: 75.0,
-    activity_level: activity_level::ActivityLevel::Sedentary.as_string(),
+    let register_user_dto = RegisterUserDto {
+        username: "Paco".into(),
+        plain_password: "123".into(),
+        sex: "M".into(),
+        weight: 83.0,
+        height: 164,
+        age: 24,
+        activity_level: activity_level::ActivityLevel::Sedentary.as_string()
     };
+
+
+    let user = UserFactory::create_user_from_dto(register_user_dto);
 
     // Mapear de UserDto a User (ya con UUID y timestamp generados)
     //let user: User = dto.into();
