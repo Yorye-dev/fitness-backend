@@ -1,4 +1,5 @@
 use sqlx::{query, Pool, Postgres};
+use std::sync::Arc;
 
 use crate::models::user::{User, PublicUser};
 

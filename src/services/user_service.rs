@@ -1,19 +1,26 @@
 use std::sync::Arc;
 
-use repositories::user_repository::UserRepository;
+use crate::repositories::user_repository::UserRepository;
+use crate::factories::user_factory::UserFactory;
+use crate::models::user::User;
+use crate::dtos::register_user_dto::RegisterUserDto;
 
 pub struct UserService {
-    user_repo: Arc<UserRepository>,
+    repo: UserRepository,
 }
 
 impl UserService {
-    pub fn new(repo: Arc<UserRepo>) -> Self {
+
+    pub fn new(repo: UserRepository) -> Self {
+        
         Self { repo }
     }
 
-    pub async fn create_user(dto: &registerUserDto) -> Result<User, String> {
-        // Agregar llamada a user factory, ya que se ve a encarga de recibir, los parametros y tranaformalos en un User
-        let user = User::new(username.to_string(), password.to_string(), age);
-        self.repo.create_user(&user).await.map_err(|e| e.to_string())
+    pub async fn register_user(&self, dto : RegisterUserDto) {
+
+        let user = UserFactory::create_user_from_dto(dto);
+
+        let _ =self.repo.save_user(&user).await;
+        
     }
 }

@@ -5,6 +5,7 @@ pub mod congfig;
 pub mod repositories;
 pub mod dtos;
 pub mod factories;
+pub mod services;
 
 use std::io::{self, Write};
 use dotenv::dotenv;
@@ -13,8 +14,9 @@ use dtos::register_user_dto::RegisterUserDto;
 
 
 use repositories::user_repository::UserRepository;
-use crate::enums::activity_level;
-use crate::factories::user_factory::UserFactory;
+use services::user_service::UserService;
+use enums::activity_level;
+use congfig::database::init_db_pg_pool;
 
 #[tokio::main]
 async fn main() {
@@ -23,9 +25,11 @@ async fn main() {
 
     let database_url = env::var("DATABASE_URL").expect("Error en .env falta DATABASE_URL");
 
-    println!("{}", database_url);
+    let _pool = init_db_pg_pool(&database_url).await.unwrap();
 
-    let _pool = congfig::database::init_db_pg_pool(&database_url).await.unwrap();
+    let user_repository = UserRepository::new(_pool.clone());
+
+    let user_service = UserService::new(user_repository);
 
     let register_user_dto = RegisterUserDto {
         username: "Paco".into(),
@@ -37,25 +41,7 @@ async fn main() {
         activity_level: activity_level::ActivityLevel::Sedentary.as_string()
     };
 
-
-    let user = UserFactory::create_user_from_dto(register_user_dto);
-
-    // Mapear de UserDto a User (ya con UUID y timestamp generados)
-    //let user: User = dto.into();
-    //
-    let repo = UserRepository::new(_pool.clone());
-
-    match repo.save_user(&user).await {
-        Ok(u) => println!("✅ Usuario creado: {:?}", u),
-        Err(e) => eprintln!("❌ Error: {}", e),
-    }
-
-    let repo = UserRepository::new(_pool.clone());
-    
-    match repo.get_public_user_by_username(&user.username).await {
-        Ok(u) => println!("Este es el usuario: {:?}", u),
-        Err(e) => println!("ERROR: {}", e),
-    }
+    user_service.register_user(register_user_dto);
 
 
     println!("Introduce la altura: ");
