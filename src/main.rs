@@ -9,12 +9,9 @@ pub mod services;
 
 use std::io::{self, Write};
 use dotenv::dotenv;
-use models::user::{User};
 use dtos::register_user_dto::RegisterUserDto;
 
-
-use repositories::user_repository::UserRepository;
-use services::user_service::UserService;
+use services::Services;
 use enums::activity_level;
 use congfig::database::init_db_pg_pool;
 
@@ -27,9 +24,7 @@ async fn main() {
 
     let _pool = init_db_pg_pool(&database_url).await.unwrap();
 
-    let user_repository = UserRepository::new(_pool.clone());
-
-    let user_service = UserService::new(user_repository);
+    let user_service = Services::new(_pool).user_service; // Structura de datos, 
 
     let register_user_dto = RegisterUserDto {
         username: "Paco".into(),
@@ -41,8 +36,9 @@ async fn main() {
         activity_level: activity_level::ActivityLevel::Sedentary.as_string()
     };
 
-    user_service.register_user(register_user_dto);
 
+    
+    user_service.register_user(register_user_dto).await;
 
     println!("Introduce la altura: ");
     io::stdout().flush().unwrap();

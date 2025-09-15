@@ -1,10 +1,10 @@
-use sqlx::{query, Pool, Postgres};
-use std::sync::Arc;
+use sqlx::{Pool, Postgres};
 
 use crate::models::user::{User, PublicUser};
 
 const USER_TABLE: &str = "users";
 
+#[derive(Clone)]
 pub struct UserRepository {
     pool: Pool<Postgres>,
 }

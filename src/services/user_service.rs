@@ -5,6 +5,7 @@ use crate::factories::user_factory::UserFactory;
 use crate::models::user::User;
 use crate::dtos::register_user_dto::RegisterUserDto;
 
+#[derive(Clone)]
 pub struct UserService {
     repo: UserRepository,
 }
