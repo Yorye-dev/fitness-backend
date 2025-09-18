@@ -2,8 +2,11 @@ pub mod auth_routes;
 
 use axum::Router;
 
-pub fn app_routes() -> Router {
+use crate::services::Services;
+use crate::routes::auth_routes::auth_routes;
+
+
+pub fn app_routes(services: Services) -> Router {
     Router::new()
-        .nest("/", post() )
-        .with_state() //Agregar los servicios, para que sea global
+         .nest("/auth", auth_routes(services.clone()))
 }
