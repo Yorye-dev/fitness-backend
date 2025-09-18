@@ -6,6 +6,8 @@ pub mod repositories;
 pub mod dtos;
 pub mod factories;
 pub mod services;
+pub mod handlers;
+pub mod routes;
 
 use std::io::{self, Write};
 use dotenv::dotenv;
