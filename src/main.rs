@@ -9,12 +9,12 @@ pub mod services;
 pub mod handlers;
 pub mod routes;
 
-use std::io::{self, Write};
+//use std::io::{self, Write};
 use dotenv::dotenv;
-use dtos::register_user_dto::RegisterUserDto;
+// use dtos::register_user_dto::RegisterUserDto;
 
 use services::Services;
-use enums::activity_level;
+// use enums::activity_level;
 use congfig::database::init_db_pg_pool;
 
 #[tokio::main]

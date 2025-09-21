@@ -51,6 +51,19 @@ impl UserRepository  {
 
         Ok(public_user)
     }
+
+    pub async fn get_user_by_username (&self, username: &String) -> Result<Option<User>, sqlx::Error> {
+        let query = format!("SELECT id, username, password_hash 
+            FROM {}
+            WHERE username = $1", USER_TABLE);
+        
+        let user = sqlx::query_as::<_, User>(&query)
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(user)
+    }
 }
 
 

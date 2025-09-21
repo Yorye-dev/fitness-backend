@@ -8,8 +8,6 @@ pub struct UserFactory;
 
 impl UserFactory {
     pub fn create_user_from_dto(dto: RegisterUserDto) -> User{
-        
-        // TODO: Sustituri por un llamada a los helpers.
 
         let password_hash = calculate_hash(&dto.plain_password).unwrap();
 

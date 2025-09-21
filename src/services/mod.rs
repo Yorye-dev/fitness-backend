@@ -1,6 +1,7 @@
 use sqlx::PgPool;
 
  pub mod user_service;
+ pub mod auth_service;
 
 use crate::services::user_service::UserService;
 use crate::repositories::user_repository::UserRepository;
@@ -10,6 +11,7 @@ use crate::repositories::user_repository::UserRepository;
 pub struct Services {
     pub user_service: UserService,
     //pub user_repository: UserRepository , otroservicio 
+
 }
 
 impl Services {
