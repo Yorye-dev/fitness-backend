@@ -8,6 +8,7 @@ pub mod factories;
 pub mod services;
 pub mod handlers;
 pub mod routes;
+pub mod errors;
 
 //use std::io::{self, Write};
 use dotenv::dotenv;
