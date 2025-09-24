@@ -2,8 +2,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AuthError {
-    #[error("database error")]
-    DatabaseError,
+
+    #[error("database error: {0}")]
+    DatabaseError(#[from] sqlx::Error),
 
     #[error("user not found")]
     UserNotFound,
