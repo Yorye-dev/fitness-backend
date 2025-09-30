@@ -9,7 +9,7 @@ pub mod services;
 pub mod handlers;
 pub mod routes;
 pub mod errors;
-
+pub mod auth;
 //use std::io::{self, Write};
 use dotenv::dotenv;
 // use dtos::register_user_dto::RegisterUserDto;
