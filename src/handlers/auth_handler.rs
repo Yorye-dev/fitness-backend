@@ -1,3 +1,4 @@
+/*
 use axum::{
     extract::{State,Json},
     response::{IntoResponse, Json as JsonResponse},
@@ -33,7 +34,7 @@ pub async fn login_user_handler(
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response(),
     } 
 }
-/*
+
 async fn sign_in_handler (
 State(services): State<Services> ,
 Json(login_user_dto): Json<LoginUserDto>)
