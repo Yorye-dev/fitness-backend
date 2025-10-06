@@ -13,6 +13,13 @@ pub struct User {
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
+pub struct SignInUser {
+    pub id: String,
+    pub username: String,
+    pub password_hash: String,
+}
+
+#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
 pub struct PublicUser {
     pub id: String,
     pub username: String,
@@ -32,7 +39,7 @@ impl From<User> for PublicUser {
             weight: user.weight,
             height: user.height,
             age: user.age,
-            activity_level: user.activity_level,
+            activity_level: user.activity_level
         }
     }
 }

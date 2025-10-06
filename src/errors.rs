@@ -14,4 +14,7 @@ pub enum AuthError {
 
     #[error("password hashing error")]
     HashingError,
+
+    #[error("generate token error")]
+    GenerateTokenError,
 }
