@@ -1,29 +1,40 @@
 use axum::{
-    http::{Request, StatusCode},
-    middleware::Next,
-    response::Response,
+    body::Body,
+    http::{Request, Response, StatusCode},
+    http::header,
 };
-
+use crate::errors::AuthError;
 use crate::auth::jwt;
-/*
-pub async fn authorize<B>(mut req: Request<B>, next: Next<B>) -> Result<Response, StatusCode> {
-    
-    let auth_header = req
-        .headers()
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok());
 
-    if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    let token = auth_header.unwrap().trim_start_matches("Bearer ").to_string();
-
-    let token_data = jwt::decode_jwt(&token).map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-    // Guardamos los claims en la request
-    req.extensions_mut().insert(&token_data);
-
+pub async fn authorization_middleware(mut req: Request, next: Next) -> Result<Response<Body>, AuthError> {
+    let auth_header = req.headers_mut().get(header::AUTHORIZATION);
+    let auth_header = match auth_header {
+        Some(header) => header.to_str().map_err(|_| AuthError {
+            message: "Empty header is not allowed".to_string(),
+            status_code: StatusCode::FORBIDDEN
+        })?,
+        None => return Err(AuthError {
+            message: "Please add the JWT token to the header".to_string(),
+            status_code: StatusCode::FORBIDDEN
+        }),
+    };
+    let mut header = auth_header.split_whitespace();
+    let (bearer, token) = (header.next(), header.next());
+    let token_data = match jwt::decode_jwt(&token.unwrap().to_string()) {
+        Ok(data) => data,
+        Err(_) => return Err(AuthError {
+            message: "Unable to decode token".to_string(),
+            status_code: StatusCode::UNAUTHORIZED
+        }),
+    };
+    // Fetch the user details from the database
+    let current_user = match retrieve_user_by_email(&token_data.claims.email) {
+        Some(user) => user,
+        None => return Err(AuthError {
+            message: "You are not an authorized user".to_string(),
+            status_code: StatusCode::UNAUTHORIZED
+        }),
+    };
+    req.extensions_mut().insert(current_user);
     Ok(next.run(req).await)
-}*/
-
+}

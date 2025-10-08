@@ -17,4 +17,7 @@ pub enum AuthError {
 
     #[error("generate token error")]
     GenerateTokenError,
+
+    #[error("unauthorized token")]
+    Unauthorized    
 }
