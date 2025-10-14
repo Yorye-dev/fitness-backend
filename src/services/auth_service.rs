@@ -1,22 +1,22 @@
 use crate::dtos::register_user_dto::RegisterUserDto;
-use crate::models::user::{PublicUser};
-use crate::repositories::user_repository::{self, UserRepository};
+use crate::repositories::user_repository::UserRepository;
 use crate::errors::AuthError;
-use crate::utils::password_utils;
 use crate::factories::user_factory::UserFactory;
 use crate::auth;
 use crate::dtos::sign_data_dto::SignInData;
+use crate::auth::jwt::Jwt;
 
 #[derive(Clone)]
 pub struct AuthService {
     user_repo: UserRepository,
+    jwt: Jwt,
 }
 
 impl AuthService {
 
-    pub fn new ( user_repo: UserRepository ) -> Self {
+    pub fn new (user_repo: UserRepository, jwt: Jwt ) -> Self {
         
-        Self { user_repo }
+        Self { user_repo, jwt }
     }
 
     pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> {
@@ -31,7 +31,7 @@ impl AuthService {
             return Err(AuthError::InvalidCredentials);
         }
 
-        let token_data = auth::jwt::generate_token(&user.id)
+        let token_data = self.jwt.generate_token(&user.id, 60)
             .map_err(|_| AuthError::GenerateTokenError);
 
         Ok(token_data?)
@@ -43,7 +43,7 @@ impl AuthService {
 
         self.user_repo.save_user(&user); //Propagar el error desde los repos.
 
-        let token_data = auth::jwt::generate_token(&user.id)
+        let token_data = self.jwt.generate_token(&user.id, 60)
             .map_err(|_| AuthError::GenerateTokenError);
 
         Ok(token_data?)        

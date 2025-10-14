@@ -1,3 +1,4 @@
+/*
 use axum::{
     body::Body,
     extract::Request,
@@ -41,4 +42,4 @@ pub async fn authorization_middleware(
 
     // 🔹 6. Continuar al siguiente middleware o handler
     Ok(next.run(req).await)
-}
+}*/

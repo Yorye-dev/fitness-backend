@@ -26,9 +26,10 @@ async fn main() {
     let database_url = env::var("DATABASE_URL").expect("Error en .env falta DATABASE_URL");
     let app_url = env::var("APP_URL").expect("Error en .env falta APP_URL");
     let project_name = env::var("PROJECT_NAME").expect("Error en .env falta PROJECT_NAME");
+    let secret_key = env::var("SECRET_KEY").expect("Error en .env falta SECRET_KEY");
 
     let _pool = init_db_pg_pool(&database_url).await.unwrap();
-    let services = Services::new(_pool); // Estructura de datos, de los servicios
+    let services = Services::new(_pool, secret_key); // Estructura de datos, de los servicios
     
     println!("{} corriendo en: {}", project_name, app_url);
 
