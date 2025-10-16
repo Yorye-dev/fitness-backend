@@ -12,5 +12,5 @@ pub struct UserMeal {
     pub total_protein: f32,
     pub total_carbs: f32,
     pub total_fat: f32,
-    pub created_at: NaiveDateTime,
+    //pub unit: Unit_type,
 }

@@ -12,6 +12,6 @@ pub struct Meal {
     pub protein_per_100g: f32,
     pub carbs_per_100g: f32,
     pub fat_per_100g: f32,
+    //pub default_unit: Unit_type
     //pub created_at: NaiveDateTime,
 }
-
