@@ -1,9 +1,15 @@
-/*
-    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    bmr FLOAT NOT NULL,
-    tdee FLOAT NOT NULL,
-    calorie_goal FLOAT NOT NULL,
-    protein_goal FLOAT,
-    carbs_goal FLOAT,
-    fats_goal FLOAT,
-*/
+use serde::{Serialize, Deserialize};
+use sqlx::FromRow;
+use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, FromRow, Debug, Clone)]
+pub struct UserNutritionsGoals {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub calorie_goal: f32,
+    pub protein_goal: f32,
+    pub fats_goal: f32,
+    pub weight_goal: f32,
+    pub tdee: f32,
+    pub bmr: f32
+}
