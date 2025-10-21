@@ -16,7 +16,7 @@ impl UserService {
 
     pub async fn register_user(&self, dto : RegisterUserDto) {
 
-        let user = UserFactory::create_user_from_dto(dto);
+        let user = UserFactory::create_user_from_dto(dto).unwrap();
 
         let _ =self.repo.save_user(&user).await;
         

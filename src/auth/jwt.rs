@@ -13,7 +13,7 @@ impl Jwt {
         Self { secret_key }
     }
 
-    pub fn generate_token(&self, user_id: &str, expiration_minutes: i64) -> Result<String, jsonwebtoken::errors::Error> {
+    pub fn generate_token(&self, user_id: &String, expiration_minutes: i64) -> Result<String, jsonwebtoken::errors::Error> {
         let claims = Claims::new(user_id, expiration_minutes);
         encode(
             &Header::default(),

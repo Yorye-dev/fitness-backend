@@ -32,12 +32,13 @@ impl UserRepository  {
         .bind(user.height)
         .bind(user.weight)
         .bind(&user.activity_level)
+        .bind(&user.goal)
         .fetch_one(&self.pool)
         .await?;
 
         Ok(saved_user)
     }
-
+/*
     pub async fn get_public_user_by_username(&self, username: &String) -> Result<PublicUser, sqlx::Error> {
         
         let query = format!("SELECT id, username, age, sex, height, weight, activity_level 
@@ -51,7 +52,7 @@ impl UserRepository  {
 
         Ok(public_user)
     }
-
+*/
     pub async fn get_user_by_username (&self, username: &String) -> Result<Option<User>, sqlx::Error> {
         let query = format!("SELECT id, username, password_hash 
             FROM {}
@@ -78,6 +79,7 @@ impl UserRepository  {
 
         Ok(user)
     }
+
 }
 
 

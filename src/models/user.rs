@@ -1,45 +1,52 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
+use sqlx::FromRow;
+use uuid::Uuid;
+use crate::enums::{sex::Sex, activity_level::ActivityLevel, goals::Goal};
 
-#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
+#[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct User {
-    pub id: String,
+    pub id: Uuid,
     pub username: String,
     pub password_hash: String,
-    pub sex: String,
+    pub sex: Sex,
     pub weight: f32,
     pub height: i32,
     pub age: i32,
-    pub activity_level: String,   
+    pub activity_level: ActivityLevel,
+    pub goal: Goal,
 }
 
-#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
-pub struct SignInUser {
-    pub id: String,
-    pub username: String,
-    pub password_hash: String,
+#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)] 
+pub struct SignInUser { 
+    pub id: String, 
+    pub username: String, 
+    pub password_hash: String, 
 }
 
-#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PublicUser {
-    pub id: String,
+    pub id: Uuid,
     pub username: String,
-    pub sex: String,
+    pub sex: Sex,
     pub weight: f32,
     pub height: i32,
     pub age: i32,
-    pub activity_level: String,   
+    pub activity_level: ActivityLevel,
+    pub goal: Goal,
 }
 
 impl From<User> for PublicUser {
     fn from(user: User) -> Self {
         PublicUser {
             id: user.id,
-            sex: user.sex,
             username: user.username,
+            sex: user.sex,
             weight: user.weight,
             height: user.height,
             age: user.age,
-            activity_level: user.activity_level
+            activity_level: user.activity_level,
+            goal: user.goal,
         }
     }
 }
+
