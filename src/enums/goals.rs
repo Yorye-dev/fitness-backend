@@ -1,11 +1,10 @@
 use serde::{Serialize, Deserialize};
 use sqlx::Type;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Type)]
 #[sqlx(type_name = "goal", rename_all = "snake_case")]
-// agregar Type
-pub enum Goal{
-    LoseWeigh,
+pub enum Goal {
+    LoseWeight,
     Maintain,
     GainMuscle,
 }
