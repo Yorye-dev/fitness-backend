@@ -1,5 +1,5 @@
 use crate::enums::{sex::Sex, goals::Goal, activity_level::ActivityLevel};
-use crate::services::nutrition_service::NutritionService;
+
 pub struct GoalService;
 
 impl GoalService {

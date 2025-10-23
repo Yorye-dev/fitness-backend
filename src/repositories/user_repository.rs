@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
-use crate::models::user::{User, PublicUser, SignInUser};
+use crate::models::user::{User, SignInUser};
 
 const USER_TABLE: &str = "users";
 

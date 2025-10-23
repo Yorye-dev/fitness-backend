@@ -3,9 +3,6 @@ use sqlx::FromRow;
 use uuid::Uuid;
 //use chrono::NaiveDateTime;
 
-use super::super::enums::unit_type::UnitType;
-
-
 #[derive(Serialize, Deserialize, FromRow, Debug, Clone)]
 pub struct Meal {
     pub id: Uuid,
