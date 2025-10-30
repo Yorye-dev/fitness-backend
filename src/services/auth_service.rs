@@ -1,3 +1,6 @@
+use std::primitive;
+
+use crate::auth::claims::Claims;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::repositories::user_repository::UserRepository;
 use crate::errors::AuthError;
@@ -49,5 +52,13 @@ impl AuthService {
         Ok(token_data?)        
     }
 
+    pub async fn verify_token(&self, token :String) -> Result<Claims, AuthError> {
+
+        let 
+    }
+
+    async fn async fn user_exists(&self, user_id: &str) -> Result<bool, sqlx> {
+
+    }
     
 }

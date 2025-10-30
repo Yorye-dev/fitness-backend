@@ -1,45 +1,116 @@
-/*
 use axum::{
     body::Body,
-    extract::Request,
-    http::{StatusCode, header},
+    http::{Request, StatusCode},
     middleware::Next,
     response::Response,
+    extract::{State,Json},
+
 };
-use crate::{
-    auth::auth_error::AuthError,
-    auth::jwt::decode_jwt,
+use crate::{services::Services, 
+    auth::{claims::Claims, jwt::Jwt}
 };
 
+
+#[derive(Debug)]
+pub struct AuthError {
+    pub message: String,
+    pub status_code: StatusCode,
+}
 pub async fn authorization_middleware(
-    mut req: Request,
+    State(services): State<Services>,
+    mut req: Request<Body>,            // body concreto Body
     next: Next,
 ) -> Result<Response, AuthError> {
-    
-    //1. Leer cabecera Authorization
+
     let auth_header = req
         .headers()
-        .get(header::AUTHORIZATION)
-        .ok_or(AuthError::MissingToken)?;
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .ok_or(AuthError {
+            message: "Missing Authorization header".into(),
+            status_code: StatusCode::FORBIDDEN,
+        })?;
 
-    //2. Convertir a &str
-    let auth_str = auth_header.to_str().map_err(|_| AuthError::InvalidHeader)?;
+     // 2️⃣ Verificar formato Bearer
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or(AuthError {
+            message: "Invalid token format".into(),
+            status_code: StatusCode::FORBIDDEN,
+        })?;
 
-    //3. Separar "Bearer" y el token
-    let mut parts = auth_str.split_whitespace();
-    let scheme = parts.next().unwrap_or("");
-    let token = parts.next().ok_or(AuthError::InvalidToken)?;
+    // 3️⃣ Decodificar el JWT usando auth_service
+    let claims: Claims = jwt(token)
+        .map_err(|_| AuthError {
+            message: "Invalid or expired token".into(),
+            status_code: StatusCode::UNAUTHORIZED,
+        })?;
 
-    if scheme != "Bearer" {
-        return Err(AuthError::InvalidHeader);
+    let user_id = claims.subject;
+
+    // 4️⃣ Verificar que el usuario exista
+    let exists = services.user_service.exists(&user_id)
+        .await
+        .map_err(|_| AuthError {
+            message: "Database error".into(),
+            status_code: StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+
+    if !exists {
+        return Err(AuthError {
+            message: "User not found".into(),
+            status_code: StatusCode::UNAUTHORIZED,
+        });
     }
 
-    //4. Decodificar JWT
-    let token_data = decode_jwt(&token.to_string()).map_err(|_| AuthError::InvalidToken)?;
+    // 5️⃣ Guardar el user_id en extensions para que el handler pueda accederlo
+    req.extensions_mut().insert(user_id);
 
-    //5. Guardar claims en la request
-    req.extensions_mut().insert(token_data);
-
-    // 🔹 6. Continuar al siguiente middleware o handler
+    // 6️⃣ Continuar con la petición
     Ok(next.run(req).await)
-}*/
+
+    // tu código aquí
+    Ok(next.run(req).await)
+}
+
+
+/*
+pub async fn authorization_middleware<B>(
+    State(services): State<Services>,
+    mut req: Request<B>, 
+    next: Next) -> Result<Response<Body>, AuthError>{
+
+    let auth_header = req.headers_mut().get(http::header::AUTHORIZATION);
+    let auth_header = match auth_header {
+        Some(header) => header.to_str().map_err(|_| AuthError {
+            message: "Empty header is not allowed".to_string(),
+            status_code: StatusCode::FORBIDDEN
+        })?,
+        None => return Err(AuthError {
+            message: "Please add the JWT token to the header".to_string(),
+            status_code: StatusCode::FORBIDDEN
+        }),
+    };
+    let mut header = auth_header.split_whitespace();
+    let (bearer, token) = (header.next(), header.next());
+    let token_data = match decode_jwt(token.unwrap().to_string()) {
+        Ok(data) => data,
+        Err(_) => return Err(AuthError {
+            message: "Unable to decode token".to_string(),
+            status_code: StatusCode::UNAUTHORIZED
+        }),
+    };
+    // Fetch the user details from the database
+    let current_user = match retrieve_user_by_email(&token_data.claims.email) {
+        Some(user) => user,
+        None => return Err(AuthError {
+            message: "You are not an authorized user".to_string(),
+            status_code: StatusCode::UNAUTHORIZED
+        }),
+    };
+    req.extensions_mut().insert(current_user);
+    Ok(next.run(req).await)
+}
+
+
+*/
