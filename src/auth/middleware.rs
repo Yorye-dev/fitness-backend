@@ -16,6 +16,7 @@ pub struct AuthError {
     pub message: String,
     pub status_code: StatusCode,
 }
+
 pub async fn authorization_middleware(
     State(services): State<Services>,
     mut req: Request<Body>,            // body concreto Body
@@ -39,37 +40,12 @@ pub async fn authorization_middleware(
             status_code: StatusCode::FORBIDDEN,
         })?;
 
-    // 3️⃣ Decodificar el JWT usando auth_service
-    let claims: Claims = jwt(token)
-        .map_err(|_| AuthError {
-            message: "Invalid or expired token".into(),
-            status_code: StatusCode::UNAUTHORIZED,
-        })?;
+    let claims: Claims = services.auth_service.get_claims_if_valid(token.to_string()).await?;
 
-    let user_id = claims.subject;
+    // 4️⃣ Insertar el usuario autenticado en las extensiones
+    req.extensions_mut().insert(claims);
 
-    // 4️⃣ Verificar que el usuario exista
-    let exists = services.user_service.exists(&user_id)
-        .await
-        .map_err(|_| AuthError {
-            message: "Database error".into(),
-            status_code: StatusCode::INTERNAL_SERVER_ERROR,
-        })?;
-
-    if !exists {
-        return Err(AuthError {
-            message: "User not found".into(),
-            status_code: StatusCode::UNAUTHORIZED,
-        });
-    }
-
-    // 5️⃣ Guardar el user_id en extensions para que el handler pueda accederlo
-    req.extensions_mut().insert(user_id);
-
-    // 6️⃣ Continuar con la petición
-    Ok(next.run(req).await)
-
-    // tu código aquí
+    // 5️⃣ Continuar la petición
     Ok(next.run(req).await)
 }
 

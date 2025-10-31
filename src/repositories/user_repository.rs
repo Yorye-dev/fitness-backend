@@ -80,6 +80,22 @@ impl UserRepository  {
         Ok(user)
     }
 
+     pub async fn exists(&self, user_id: &String) -> Result<bool, sqlx::Error> {
+        // Ejecuta una consulta rápida y eficiente
+        let result = sqlx::query_scalar!(
+            "
+            SELECT EXISTS (
+                SELECT 1 FROM users WHERE id = $1
+            )
+            ",
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(result.unwrap_or(false))
+    }
+
 }
 
 

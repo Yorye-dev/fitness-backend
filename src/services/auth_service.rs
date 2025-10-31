@@ -52,13 +52,25 @@ impl AuthService {
         Ok(token_data?)        
     }
 
-    pub async fn verify_token(&self, token :String) -> Result<Claims, AuthError> {
+    pub async fn get_claims_if_valid(&self, token :String) -> Result<Claims, AuthError> {
 
-        let 
+        let claims  = self.jwt.decode_token(&token).map_err(|_| AuthError::GenerateTokenError)?;
+
+        let user_id = claims.subject.clone();
+
+        let exists = self.user_repo.exists(&user_id)
+            .await
+            .map_err(|_| AuthError::UserNotFound)?;
+
+        if !exists {
+            return Err(AuthError::UserNotFound)
+        }
+
+        Ok(claims)
     }
 
-    async fn async fn user_exists(&self, user_id: &str) -> Result<bool, sqlx> {
+     async fn user_exists(&self, user_id: &String) -> Result<bool, AuthError> {
 
+        self.user_repo.exists(user_id).await.map_err(|_| AuthError::UserNotFound)
     }
-    
 }
