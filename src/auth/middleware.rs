@@ -6,10 +6,10 @@ use axum::{
     extract::{State,Json},
 
 };
-use crate::{services::Services, 
-    auth::{claims::Claims, jwt::Jwt}
+use crate::{
+    auth::{claims::Claims, jwt::Jwt},
+    services::Services
 };
-
 
 #[derive(Debug)]
 pub struct AuthError {
@@ -40,7 +40,10 @@ pub async fn authorization_middleware(
             status_code: StatusCode::FORBIDDEN,
         })?;
 
-    let claims: Claims = services.auth_service.get_claims_if_valid(token.to_string()).await?;
+    let claims: Claims = services.auth_service.get_claims_if_valid(token.to_string()).await.map_err(|_| AuthError{
+            message: "Missing Authorization header".into(),
+            status_code: StatusCode::FORBIDDEN,
+    })?;
 
     // 4️⃣ Insertar el usuario autenticado en las extensiones
     req.extensions_mut().insert(claims);
