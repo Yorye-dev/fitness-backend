@@ -22,10 +22,7 @@ impl UserService {
         let user = UserFactory::create_user_from_dto(dto).unwrap();
 
         let _ =self.repo.save_user(&user).await;
-
-    pub async fn me (Extension(claims) :Extension<Claims>) -> impl IntoResponse {
-    
-        format!("Hola usuario con id: {}", claims.subject)
-        
     }
+
+    //pub async fn me (Extension(claims) :Extension<Claims>) -> impl IntoResponse {
 }
