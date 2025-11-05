@@ -1,9 +1,10 @@
 use axum::{
     extract::Extension,
-    response::{IntoResponse, Json},
+    response::IntoResponse,
 };
 use serde::Serialize;
 use crate::auth::claims::Claims;
+use crate::factories::api_response_factory::ResponseFactory;
 
 #[derive(Serialize)]
 struct MeResponse {
@@ -12,11 +13,12 @@ struct MeResponse {
 }
 
 pub async fn me_handler(Extension(claims): Extension<Claims>) -> impl IntoResponse {
+    
     let response = MeResponse {
         user_id: claims.subject,
         exp: claims.exp,
     };
 
-    Json(response)
+    ResponseFactory::ok(response)
 }
 
