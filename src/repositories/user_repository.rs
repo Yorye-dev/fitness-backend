@@ -1,4 +1,5 @@
 use sqlx::{Pool, Postgres};
+use uuid::Uuid;
 
 use crate::models::user::{User, SignInUser};
 
@@ -53,6 +54,21 @@ impl UserRepository  {
         Ok(public_user)
     }
 */
+    pub async fn get_user_by_id (&self, user_id: &Uuid) -> Result<Option<SignInUser>, sqlx::Error> {
+        let query = format!("SELECT id, username, password_hash 
+            FROM {}
+            WHERE id = $1", USER_TABLE);
+        
+        let user = sqlx::query_as::<_, SignInUser>(&query)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(user)
+    }
+
+
+
     pub async fn get_user_by_username (&self, username: &String) -> Result<Option<User>, sqlx::Error> {
         let query = format!("SELECT id, username, password_hash 
             FROM {}
