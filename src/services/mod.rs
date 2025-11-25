@@ -6,6 +6,7 @@ use sqlx::PgPool;
  pub mod goal_service;
  pub mod errors;
 
+use crate::repositories::user_nutrition_goals::GoalsRepository;
 use crate::services::user_service::UserService;
 use crate::repositories::user_repository::UserRepository;
 use crate::services::auth_service::AuthService;
@@ -26,9 +27,9 @@ impl Services {
         let jwt = Jwt::new(secret_key);
 
         let user_repository = UserRepository::new(pool.clone());
-        //mas repositories
+        let goals_repository = GoalsRepository::new(pool.clone());        //mas repositories
         Self { 
-            user_service: UserService::new(user_repository.clone()),
+            user_service: UserService::new(user_repository.clone(), goals_repository.clone()),
             auth_service: AuthService::new(user_repository.clone(), jwt)
         }
     }

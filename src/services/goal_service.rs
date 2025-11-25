@@ -4,7 +4,7 @@ pub struct GoalService;
 
 impl GoalService {
 
-    pub fn calculate_goal(
+    pub fn calculate_goal_of_kcal(
         weight_kg: f32, height_cm: f32, age: u32, sex: Sex
         ) -> f32 {
         match sex {
