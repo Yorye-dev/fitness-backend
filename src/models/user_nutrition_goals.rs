@@ -9,6 +9,7 @@ pub struct UserNutritionsGoals {
     pub calorie_goal: f32,
     pub protein_goal: f32,
     pub fats_goal: f32,
+    pub carbs_goal: f32,
     pub weight_goal: f32,
     pub tdee: f32,
     pub bmr: f32
