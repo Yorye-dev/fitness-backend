@@ -22,7 +22,7 @@ impl AuthService {
         Self { user_repo, jwt }
     }
 
-    pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> {
+    pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> { //Orquestador
         
         let user = self.user_repo
             .get_sign_in_user_by_username(&dto.username)

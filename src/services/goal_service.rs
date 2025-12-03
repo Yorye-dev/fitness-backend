@@ -1,10 +1,20 @@
-use crate::enums::{sex::Sex, goals::Goal, activity_level::ActivityLevel};
+use crate::{enums::{activity_level::ActivityLevel, goals::{Goal}, sex::Sex}};
+use crate::models::{user_nutrition_goals::UserNutritionsGoals ,user::User };
 
 pub struct GoalService;
-
 impl GoalService {
 
-    pub fn calculate_goal_of_kcal(
+    pub fn generate_user_goals(&user: User) -> UserNutritionsGoals{
+
+        let bmr = Self::calculate_bmr(user.weight_kg, user.height_cm, user.age, user.sex);
+        let tdee = Self::calculate_tdee(bmr, user.activity_level);
+        let (protein, fats, carbs) = Self::calculate_macros(tdee, user.goal);
+
+        // Factoria de crear goals? O sacamos a dtos y dejamos solo la capa de modelos para la bdd?
+
+    }
+
+    fn calculate_bmr(
         weight_kg: f32, height_cm: f32, age: u32, sex: Sex
         ) -> f32 {
         match sex {
@@ -13,11 +23,11 @@ impl GoalService {
         }
     }
 
-    pub fn calculate_tdee(bmr: f32, activity_level: ActivityLevel) -> f32 {
+    fn calculate_tdee(bmr: f32, activity_level: ActivityLevel) -> f32 {
         bmr * activity_level.multiplier()
     }
 
-    pub fn calculate_macros(tdee: f32, goal: Goal) -> (f32, f32, f32) {
+    fn calculate_macros(tdee: f32, goal: Goal) -> (f32, f32, f32) {
         let (protein_pct, fat_pct, carb_pct) = match goal {
             Goal::LoseWeight => (0.3, 0.25, 0.45),
             Goal::Maintain => (0.25, 0.25, 0.5),
@@ -25,9 +35,9 @@ impl GoalService {
         };
 
         let protein = tdee * protein_pct / 4.0;
-        let fat = tdee * fat_pct / 9.0;
+        let fats = tdee * fat_pct / 9.0;
         let carbs = tdee * carb_pct / 4.0;
 
-        (protein, fat, carbs)
+        (protein, fats, carbs)
     }
 }
