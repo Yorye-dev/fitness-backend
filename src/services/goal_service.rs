@@ -1,25 +1,26 @@
 use crate::{enums::{activity_level::ActivityLevel, goals::{Goal}, sex::Sex}};
 use crate::models::{user_nutrition_goals::UserNutritionsGoals ,user::User };
+use crate::utils;
 
 pub struct GoalService;
 impl GoalService {
 
-    pub fn generate_user_goals(&user: User) -> UserNutritionsGoals{
+    pub fn generate_user_goals(user: &User) -> UserNutritionsGoals{
 
-        let bmr = Self::calculate_bmr(user.weight_kg, user.height_cm, user.age, user.sex);
-        let tdee = Self::calculate_tdee(bmr, user.activity_level);
-        let (protein, fats, carbs) = Self::calculate_macros(tdee, user.goal);
+        let bmr = Self::calculate_bmr(user.weight, user.height, user.age, user.sex.clone());
+        let tdee = Self::calculate_tdee(bmr, user.activity_level.clone());
+        let (protein, fats, carbs) = Self::calculate_macros(tdee, user.goal.clone());
 
-        // Factoria de crear goals? O sacamos a dtos y dejamos solo la capa de modelos para la bdd?
+        UserNutritionsGoals::new(user.id, protein, fats, carbs, tdee, bmr)
 
     }
 
     fn calculate_bmr(
-        weight_kg: f32, height_cm: f32, age: u32, sex: Sex
+        weight_kg: f32, height_cm: i32, age: i32, sex: Sex
         ) -> f32 {
         match sex {
-            Sex::Male => 10.0 * weight_kg + 6.25 * height_cm - 5.0 * age as f32 + 5.0,
-            Sex::Female => 10.0 * weight_kg + 6.25 * height_cm - 5.0 * age as f32 - 161.0,
+            Sex::Male => 10.0 * weight_kg + 6.25 * utils::parsers::convert_i32_at_f32(height_cm) - 5.0 * age as f32 + 5.0,
+            Sex::Female => 10.0 * weight_kg + 6.25 * utils::parsers::convert_i32_at_f32(height_cm) - 5.0 * age as f32 - 161.0,
         }
     }
 
