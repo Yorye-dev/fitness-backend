@@ -31,7 +31,7 @@ impl UserService {
         let _ =self.user_repo.save_user(&user).await;
     }
 
-    pub async fn get_daily_stats(&self, claims: Claims) ->  Result<UserNutritionsGoals, String> {
+    /*pub async fn get_daily_stats(&self, claims: Claims) ->  Result<UserNutritionsGoals, String> {
 
         // Orquestador
         
@@ -45,7 +45,7 @@ impl UserService {
         // let today_meals = self.meals_repo.find_today_by_user_id(&user_id).await?;
         
 
-    }
+    }*/
 
     // pub async fn grate_goals
 

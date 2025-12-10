@@ -27,10 +27,10 @@ impl Services {
         let jwt = Jwt::new(secret_key);
 
         let user_repository = UserRepository::new(pool.clone());
-        let goals_repository = GoalsRepository::new(pool.clone());        //mas repositories
+        let goals_repository = GoalsRepository::new(pool.clone());//mas repositories
         Self { 
             user_service: UserService::new(user_repository.clone(), goals_repository.clone()),
-            auth_service: AuthService::new(user_repository.clone(), jwt)
+            auth_service: AuthService::new(user_repository.clone(),goals_repository.clone() ,jwt)
         }
     }
 }

@@ -3,23 +3,26 @@ use std::primitive;
 use crate::auth::claims::Claims;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::repositories::user_repository::UserRepository;
+use crate::repositories::user_nutrition_goals::GoalsRepository;
 use crate::errors::AuthError;
 use crate::factories::user_factory::UserFactory;
 use crate::auth;
 use crate::dtos::sign_data_dto::SignInData;
 use crate::auth::jwt::Jwt;
+use crate::services::goal_service::GoalService;
 
 #[derive(Clone)]
 pub struct AuthService {
     user_repo: UserRepository,
+    goals_repo: GoalsRepository,
     jwt: Jwt,
 }
 
 impl AuthService {
 
-    pub fn new (user_repo: UserRepository, jwt: Jwt ) -> Self {
+    pub fn new (user_repo: UserRepository, goals_repo: GoalsRepository, jwt: Jwt ) -> Self {
         
-        Self { user_repo, jwt }
+        Self { user_repo, goals_repo, jwt }
     }
 
     pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> { //Orquestador
@@ -44,10 +47,12 @@ impl AuthService {
 
         let user = UserFactory::create_user_from_dto(dto).unwrap();
 
-        self.user_repo.save_user(&user);//Propagar el error desde los repos.
-                                        //
-        // Hay que persistir los goals
+        let user_goals = GoalService::generate_user_goals(&user);
 
+        let _ = self.user_repo.save_user(&user).await;//Propagar el error desde los repos.
+        
+        // Hay que persistir los goals
+        let _= self.goals_repo.save_user_goals(&user_goals).await;
 
         let token_data = self.jwt.generate_token(&user.id.to_string(), 60)
             .map_err(|_| AuthError::GenerateTokenError);
