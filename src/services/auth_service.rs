@@ -45,6 +45,9 @@ impl AuthService {
         let user = UserFactory::create_user_from_dto(dto).unwrap();
 
         self.user_repo.save_user(&user);//Propagar el error desde los repos.
+                                        //
+        // Hay que persistir los goals
+
 
         let token_data = self.jwt.generate_token(&user.id.to_string(), 60)
             .map_err(|_| AuthError::GenerateTokenError);

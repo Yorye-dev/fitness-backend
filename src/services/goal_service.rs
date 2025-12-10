@@ -1,5 +1,5 @@
 use crate::{enums::{activity_level::ActivityLevel, goals::{Goal}, sex::Sex}};
-use crate::models::{user_nutrition_goals::UserNutritionsGoals ,user::User };
+use crate::entities::{user_nutrition_goals::UserNutritionsGoals ,user::User };
 use crate::utils;
 
 pub struct GoalService;

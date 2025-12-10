@@ -1,7 +1,7 @@
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::models::user_nutrition_goals::UserNutritionsGoals;
+use crate::entities::user_nutrition_goals::UserNutritionsGoals;
 
 const USER_NUTRITION_GOALS_TABLE: &str = "users_nutrition_goals";
 
@@ -40,11 +40,9 @@ impl GoalsRepository  {
         let saved_user_goals = sqlx::query_as::<_, UserNutritionsGoals>(&query)
         .bind(&user_nutritions_goals.id)
         .bind(&user_id)
-        .bind(&user_nutritions_goals.calorie_goal)
         .bind(&user_nutritions_goals.protein_goal)
         .bind(&user_nutritions_goals.carbs_goal)
         .bind(&user_nutritions_goals.fats_goal)
-        .bind(&user_nutritions_goals.weight_goal)
         .bind(&user_nutritions_goals.tdee)
         .bind(&user_nutritions_goals.bmr)
         .fetch_one(&self.pool)

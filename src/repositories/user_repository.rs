@@ -1,7 +1,7 @@
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::models::user::{User, SignInUser};
+use crate::entities::user::{User, SignInUser};
 
 const USER_TABLE: &str = "users";
 

@@ -1,5 +1,5 @@
 use super::{user_nutrition_goals_dto::UserNutritionsGoalsDto};
-use crate::models::user_nutrition_goals::UserNutritionsGoals;
+use crate::entities::user_nutrition_goals::UserNutritionsGoals;
 
 impl From<UserNutritionsGoalsDto> for UserNutritionsGoals {
 

@@ -2,7 +2,7 @@
 use uuid::Uuid;
 
 use crate::enums::{sex::Sex, activity_level::ActivityLevel, goals::Goal};
-use crate::models::user::User;
+use crate::entities::user::User;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::utils::password_utils::calculate_hash;
 

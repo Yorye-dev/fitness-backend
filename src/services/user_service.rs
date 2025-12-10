@@ -1,13 +1,13 @@
 use axum::Extension;
 use tracing_subscriber::util;
 
-use crate::models::user;
+use crate::entities::user;
 use crate::repositories::user_repository::{self, UserRepository};
 use crate::factories::user_factory::UserFactory;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::repositories::user_nutrition_goals::GoalsRepository;
 use crate::auth::claims::Claims;
-use crate::models::user_nutrition_goals::UserNutritionsGoals;
+use crate::entities::user_nutrition_goals::UserNutritionsGoals;
 
 use crate::utils;
 
