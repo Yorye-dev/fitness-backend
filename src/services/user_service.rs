@@ -24,14 +24,7 @@ impl UserService {
         Self { user_repo, goals_repo }
     }
 
-    pub async fn register_user(&self, dto : RegisterUserDto) {
-
-        let user = UserFactory::create_user_from_dto(dto).unwrap();
-
-        let _ =self.user_repo.save_user(&user).await;
-    }
-
-    /*pub async fn get_daily_stats(&self, claims: Claims) ->  Result<UserNutritionsGoals, String> {
+    pub async fn get_daily_stats(&self, claims: Claims) ->  Result<UserNutritionsGoals, String> {
 
         // Orquestador
         
@@ -41,11 +34,11 @@ impl UserService {
 
 
 
-        // let goals = self.goals_repo.get_daily_stats(user_id).await;
+        let goals = self.goals_repo.get_daily_stats(user_id).await;
         // let today_meals = self.meals_repo.find_today_by_user_id(&user_id).await?;
         
 
-    }*/
+    }
 
     // pub async fn grate_goals
 
