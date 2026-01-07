@@ -1,21 +1,25 @@
-use axum::{
-    extract::{State,Json},
-    response::IntoResponse,
-};
+use axum::extract::Query;
+use serde::Deserialize;
+
 use crate::services::Services;
-use crate::dtos::sign_data_dto::SignInData;
-use crate::factories::api_response_factory::HttpResponseFactory;
+use crate::auth::claims::Claims;
 
+#[derive(Deserialize)]
+struct NutritionQuery {
+    date: Option<String>, // formato "YYYY-MM-DD"
+}
 
+pub async fn daily_macros_handler(
+    Query(query): Query<NutritionQuery>,
+    Extension(claims): Extension<Claims>,
+    State(services): State<Services> ,
+) -> impl IntoResponse {
+    let date = if let Some(d) = query.date {
+        // parsear string a chrono::NaiveDate
+        chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").unwrap()
+    } else {
+        Utc::now().date_naive()
+    };
 
-pub async fn get_daily_macros(
-    State(service): State<NutritionService>,
-    Path(user_id): Path<Uuid>,
-    Query(query): Query<DateQuery>,
-) -> Result<HttpResponse, ApiError> {
-    let date = query.date.unwrap_or_else(today);
-
-    let result = service.get_daily_macros(user_id, date).await?;
-
-    Ok(HttpResponseFactory::ok(result))
+    // luego pasar `date` al servicio para filtrar los meals
 }
