@@ -37,7 +37,7 @@ pub async fn authorization_middleware(
     let token_data = decode_jwt(&token.to_string()).map_err(|_| AuthError::InvalidToken)?;
 
     //5. Guardar claims en la request
-    req.extensions_mut().insert(token_data);
+    req.extensions_mut().insert(token_data.claims);
 
     // 🔹 6. Continuar al siguiente middleware o handler
     Ok(next.run(req).await)

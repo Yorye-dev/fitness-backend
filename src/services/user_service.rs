@@ -23,7 +23,7 @@ impl UserService {
         
         Self { user_repo, goals_repo }
     }
-
+    /*
     pub async fn get_daily_stats(&self, claims: Claims) ->  Result<UserNutritionsGoals, String> {
 
         // Orquestador
@@ -42,5 +42,5 @@ impl UserService {
 
     // pub async fn grate_goals
 
-    //pub async fn me (Extension(claims) :Extension<Claims>) -> impl IntoResponse {
+    //pub async fn me (Extension(claims) :Extension<Claims>) -> impl IntoResponse {*/
 }

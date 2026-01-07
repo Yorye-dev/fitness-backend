@@ -18,9 +18,9 @@ pub async fn stats_handler (
     }
 }
 
-pub async fn register_handler(
+/*pub async fn register_handler(
     State(services): State<Services>,
     Json(register_user_dto): Json<RegisterUserDto>
 ) {
     services.user_service.register_user(register_user_dto).await
-}
+}*/
