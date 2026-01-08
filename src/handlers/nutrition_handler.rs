@@ -21,5 +21,5 @@ pub async fn daily_macros_handler(
         Utc::now().date_naive()
     };
 
-    // luego pasar `date` al servicio para filtrar los meals
+    // llamar al servicio.
 }
