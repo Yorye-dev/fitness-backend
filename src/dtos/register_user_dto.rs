@@ -8,5 +8,6 @@ pub struct RegisterUserDto {
     pub weight: f32,
     pub height: i32,
     pub age: i32,
-    pub activity_level: String,   
+    pub activity_level: String,
+    pub goal: String,
 }

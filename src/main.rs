@@ -1,6 +1,6 @@
 pub mod utils;
 pub mod enums;
-pub mod models;
+pub mod entities;
 pub mod congfig;
 pub mod repositories;
 pub mod dtos;

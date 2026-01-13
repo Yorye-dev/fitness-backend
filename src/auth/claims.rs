@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::{Utc, Duration};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize,Clone)]
 pub struct Claims {
     pub subject: String,
     pub exp: usize

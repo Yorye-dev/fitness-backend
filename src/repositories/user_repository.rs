@@ -1,6 +1,7 @@
 use sqlx::{Pool, Postgres};
+use uuid::Uuid;
 
-use crate::models::user::{User, PublicUser, SignInUser};
+use crate::entities::user::{User, SignInUser};
 
 const USER_TABLE: &str = "users";
 
@@ -32,12 +33,13 @@ impl UserRepository  {
         .bind(user.height)
         .bind(user.weight)
         .bind(&user.activity_level)
+        .bind(&user.goal)
         .fetch_one(&self.pool)
         .await?;
 
         Ok(saved_user)
     }
-
+/*
     pub async fn get_public_user_by_username(&self, username: &String) -> Result<PublicUser, sqlx::Error> {
         
         let query = format!("SELECT id, username, age, sex, height, weight, activity_level 
@@ -50,6 +52,19 @@ impl UserRepository  {
             .await?;
 
         Ok(public_user)
+    }
+*/
+    pub async fn get_user_by_id (&self, user_id: &Uuid) -> Result<Option<SignInUser>, sqlx::Error> {
+        let query = format!("SELECT id, username, password_hash 
+            FROM {}
+            WHERE id = $1", USER_TABLE);
+        
+        let user = sqlx::query_as::<_, SignInUser>(&query)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(user)
     }
 
     pub async fn get_user_by_username (&self, username: &String) -> Result<Option<User>, sqlx::Error> {
@@ -78,6 +93,23 @@ impl UserRepository  {
 
         Ok(user)
     }
+
+     pub async fn exists(&self, user_id: &String) -> Result<bool, sqlx::Error> {
+        // Ejecuta una consulta rápida y eficiente
+        let result = sqlx::query_scalar!(
+            "
+            SELECT EXISTS (
+                SELECT 1 FROM users WHERE id = $1
+            )
+            ",
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(result.unwrap_or(false))
+    }
+
 }
 
 

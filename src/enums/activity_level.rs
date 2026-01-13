@@ -1,6 +1,8 @@
 use serde::{Serialize, Deserialize};
+use sqlx::Type;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[sqlx(type_name = "activity_level", rename_all = "snake_case")]
 pub enum ActivityLevel {
     Sedentary,
     LightlyActive,
@@ -8,8 +10,6 @@ pub enum ActivityLevel {
     VeryActive,
     ExtraActive,
 }
-
-
 
 impl ActivityLevel {
     pub fn multiplier(&self) -> f32 {
