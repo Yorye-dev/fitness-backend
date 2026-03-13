@@ -1,5 +1,4 @@
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use serde::Serialize;
 use uuid::Uuid;
 
 #[derive(Serialize, Debug, Clone)]

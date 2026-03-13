@@ -3,13 +3,10 @@ use axum::{
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
-    extract::{State,Json},
+    extract::State,
 
 };
-use crate::{
-    auth::{claims::Claims, jwt::Jwt},
-    services::Services
-};
+use crate::services::Services;
 
 #[derive(Debug)]
 pub struct AuthError {

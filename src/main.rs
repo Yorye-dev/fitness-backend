@@ -1,6 +1,4 @@
-pub mod enums;
 pub mod config;
-pub mod repositories;
 pub mod dtos;
 pub mod services;
 pub mod errors;

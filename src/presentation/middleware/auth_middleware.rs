@@ -6,7 +6,7 @@ use axum::{
     response::Response,
 };
 use crate::{
-    auth::auth_error::AuthError,
+    domain::errors::DomainError as AuthError,
     auth::jwt::decode_jwt,
 };
 

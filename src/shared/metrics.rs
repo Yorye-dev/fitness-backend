@@ -1,4 +1,4 @@
-use crate::enums::activity_level;
+use crate::domain::enums::activity_level;
 use crate::shared::parsers;
 
 pub fn calculate_tdee(weight: f32, height: i32, age: i32) -> f32 {

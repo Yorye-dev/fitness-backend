@@ -1,4 +1,4 @@
-use crate::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
+use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

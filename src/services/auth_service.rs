@@ -1,7 +1,7 @@
 use crate::auth::claims::Claims;
 use crate::dtos::register_user_dto::RegisterUserDto;
-use crate::repositories::user_repository::UserRepository;
-use crate::repositories::user_nutrition_goals::GoalsRepository;
+use crate::domain::user::repository::UserRepository as UserRepositoryTrait;
+use crate::domain::nutrition::repository::NutritionRepository as NutritionRepositoryTrait;
 use crate::errors::AuthError;
 use crate::domain::user::factory::UserFactory;
 use crate::domain::nutrition::goals::NutritionGoals;
@@ -9,17 +9,22 @@ use crate::domain::nutrition::calculator::NutritionCalculator;
 use crate::auth;
 use crate::dtos::sign_data_dto::SignInData;
 use crate::auth::jwt::Jwt;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AuthService {
-    user_repo: UserRepository,
-    goals_repo: GoalsRepository,
+    user_repo: Arc<dyn UserRepositoryTrait>,
+    goals_repo: Arc<dyn NutritionRepositoryTrait>,
     jwt: Jwt,
 }
 
 impl AuthService {
 
-    pub fn new (user_repo: UserRepository, goals_repo: GoalsRepository, jwt: Jwt ) -> Self {
+    pub fn new (
+        user_repo: Arc<dyn UserRepositoryTrait>, 
+        goals_repo: Arc<dyn NutritionRepositoryTrait>, 
+        jwt: Jwt
+    ) -> Self {
         
         Self { user_repo, goals_repo, jwt }
     }

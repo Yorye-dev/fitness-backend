@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use uuid::Uuid;
 use crate::domain::errors::DomainError;
 use crate::domain::nutrition::repository::NutritionRepository;

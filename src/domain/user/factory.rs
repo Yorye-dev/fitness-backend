@@ -1,8 +1,8 @@
 use uuid::Uuid;
 
+use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 use crate::domain::user::user::User;
 use crate::dtos::register_user_dto::RegisterUserDto;
-use crate::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 use crate::shared::password::calculate_hash;
 
 pub struct UserFactory;

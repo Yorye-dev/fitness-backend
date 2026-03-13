@@ -1,5 +1,5 @@
+use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 use crate::domain::nutrition::macros::Macros;
-use crate::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 
 pub struct NutritionCalculator;
 

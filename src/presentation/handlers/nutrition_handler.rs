@@ -13,10 +13,10 @@ struct NutritionQuery {
 
 pub async fn daily_macros_handler(
     Query(query): Query<NutritionQuery>,
-    Extension(claims): Extension<Claims>,
-    State(services): State<Services>,
+    Extension(_claims): Extension<Claims>,
+    State(_services): State<Services>,
 ) -> impl IntoResponse {
-    let date = if let Some(d) = query.date {
+    let _date = if let Some(d) = query.date {
         chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").unwrap()
     } else {
         chrono::Utc::now().date_naive()

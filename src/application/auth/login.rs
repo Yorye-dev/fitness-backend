@@ -1,7 +1,5 @@
-use async_trait::async_trait;
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use crate::domain::user::user::SignInUser;
 use crate::auth::jwt::Jwt;
 use crate::dtos::sign_data_dto::SignInData;
 use crate::auth;

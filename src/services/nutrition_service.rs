@@ -1,4 +1,4 @@
-use crate::enums::{sex::Sex, goals::Goal, activity_level::ActivityLevel};
+use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 
 pub struct NutritionService;
 

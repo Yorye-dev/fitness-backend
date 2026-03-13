@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::Type;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
@@ -9,4 +9,3 @@ pub enum UnitType {
     Ml,
     Portion,
 }
-
