@@ -1,8 +1,7 @@
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use std::time::Duration;
 
-
-pub async fn init_db_pg_pool(database_url: &str) ->  Result<Pool<Postgres>, sqlx::Error>{
+pub async fn init_db_pg_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
     let pool = PgPoolOptions::new()
         .min_connections(2)
         .acquire_timeout(Duration::from_secs(5))
@@ -13,9 +12,9 @@ pub async fn init_db_pg_pool(database_url: &str) ->  Result<Pool<Postgres>, sqlx
 
     sqlx::query("SELECT 1")
         .execute(&pool)
-        .await?; // Select para verificar que hay conexió
+        .await?;
 
-    println!("Se pudo concetar con la database");
-    
+    println!("Se pudo conectar con la database");
+
     Ok(pool)
-} 
+}

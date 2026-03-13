@@ -8,4 +8,3 @@ pub struct CreateMealDto {
     pub carbs: f32,
     pub fat: f32,
 }
-
