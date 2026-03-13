@@ -1,19 +1,15 @@
-pub mod utils;
 pub mod enums;
-pub mod entities;
 pub mod config;
 pub mod repositories;
 pub mod dtos;
-pub mod factories;
 pub mod services;
-pub mod handlers;
-pub mod routes;
 pub mod errors;
 pub mod auth;
 pub mod domain;
 pub mod application;
 pub mod presentation;
 pub mod shared;
+pub mod infrastructure;
 
 use dotenv::dotenv;
 use services::Services;
@@ -33,7 +29,7 @@ async fn main() {
     
     println!("{} corriendo en: {}", project_name, app_url);
 
-    let app = routes::app_routes(services.clone());
+    let app = presentation::routes::app_routes(services.clone());
     let listener = tokio::net::TcpListener::bind(app_url).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

@@ -1,15 +1,14 @@
-use std::primitive;
-
 use crate::auth::claims::Claims;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::repositories::user_repository::UserRepository;
 use crate::repositories::user_nutrition_goals::GoalsRepository;
 use crate::errors::AuthError;
-use crate::factories::user_factory::UserFactory;
+use crate::domain::user::factory::UserFactory;
+use crate::domain::nutrition::goals::NutritionGoals;
+use crate::domain::nutrition::calculator::NutritionCalculator;
 use crate::auth;
 use crate::dtos::sign_data_dto::SignInData;
 use crate::auth::jwt::Jwt;
-use crate::services::goal_service::GoalService;
 
 #[derive(Clone)]
 pub struct AuthService {
@@ -25,7 +24,7 @@ impl AuthService {
         Self { user_repo, goals_repo, jwt }
     }
 
-    pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> { //Orquestador
+    pub async fn sing_in (&self, dto :SignInData) -> Result<String, AuthError> {
         
         let user = self.user_repo
             .get_sign_in_user_by_username(&dto.username)
@@ -33,7 +32,6 @@ impl AuthService {
             .ok_or(AuthError::UserNotFound)?;
 
         if !auth::utils::verify_password(&dto.password, &user.password_hash){
-
             return Err(AuthError::InvalidCredentials);
         }
 
@@ -47,12 +45,10 @@ impl AuthService {
 
         let user = UserFactory::create_user_from_dto(dto).unwrap();
 
-        let user_goals = GoalService::generate_user_goals(&user);
+        let user_goals = Self::generate_user_goals(&user);
 
-        let _ = self.user_repo.save_user(&user).await;//Propagar el error desde los repos.
-        
-        // Hay que persistir los goals
-        let _= self.goals_repo.save_user_goals(&user_goals).await;
+        self.user_repo.save_user(&user).await?;
+        self.goals_repo.save_user_goals(&user_goals).await?;
 
         let token_data = self.jwt.generate_token(&user.id.to_string(), 60)
             .map_err(|_| AuthError::GenerateTokenError);
@@ -77,8 +73,23 @@ impl AuthService {
         Ok(claims)
     }
 
-     async fn user_exists(&self, user_id: &String) -> Result<bool, AuthError> {
+    fn generate_user_goals(user: &crate::domain::user::user::User) -> NutritionGoals {
+        let bmr = NutritionCalculator::calculate_bmr(
+            user.weight, 
+            user.height as f32, 
+            user.age as u32, 
+            user.sex.clone()
+        );
+        let tdee = NutritionCalculator::calculate_tdee(bmr, user.activity_level.clone());
+        let macros = NutritionCalculator::calculate_macros(tdee, user.goal.clone());
 
-        self.user_repo.exists(user_id).await.map_err(|_| AuthError::UserNotFound)
+        NutritionGoals::new(
+            user.id,
+            macros.protein,
+            macros.fat,
+            macros.carbs,
+            tdee,
+            bmr
+        )
     }
 }

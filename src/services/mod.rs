@@ -2,8 +2,6 @@ use sqlx::PgPool;
 
  pub mod user_service;
  pub mod auth_service;
- pub mod nutrition_service;
- pub mod goal_service;
  pub mod errors;
 
 use crate::repositories::user_nutrition_goals::GoalsRepository;

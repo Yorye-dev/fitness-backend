@@ -1,44 +1,42 @@
+use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
-
 use crate::domain::nutrition::goals::NutritionGoals;
+use crate::domain::nutrition::repository::NutritionRepository as NutritionRepositoryTrait;
 
-const USER_NUTRITION_GOALS_TABLE: &str = "users_nutrition_goals";
+const GOALS_TABLE: &str = "users_nutrition_goals";
 
-#[derive(Clone)]
-pub struct GoalsRepository {
+pub struct SqlxNutritionRepository {
     pool: Pool<Postgres>,
 }
 
-impl GoalsRepository  {
-    
+impl SqlxNutritionRepository {
     pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
+}
 
-    pub async fn get_user_goals (&self, user_id: &Uuid) -> Result<Option<NutritionGoals>, sqlx::Error> {
+#[async_trait]
+impl NutritionRepositoryTrait for SqlxNutritionRepository {
+    async fn get_user_goals(&self, user_id: &Uuid) -> Result<Option<NutritionGoals>, sqlx::Error> {
         let query = format!("SELECT *
             FROM {}
-            WHERE user_id = $1", USER_NUTRITION_GOALS_TABLE);
+            WHERE user_id = $1", GOALS_TABLE);
         
-        let user = sqlx::query_as::<_, NutritionGoals>(&query)
+        let goals = sqlx::query_as::<_, NutritionGoals>(&query)
             .bind(user_id)
             .fetch_optional(&self.pool)
             .await?;
 
-        Ok(user)
+        Ok(goals)
     }
 
-    pub async fn save_user_goals(
-        &self,
-        goals: &NutritionGoals
-    ) -> Result<NutritionGoals, sqlx::Error> {
-
+    async fn save_user_goals(&self, goals: &NutritionGoals) -> Result<NutritionGoals, sqlx::Error> {
         let query = format!(
             "INSERT INTO {} (id, user_id, protein_goal, carbs_goal, fats_goal, tdee, bmr)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, user_id, protein_goal, carbs_goal, fats_goal, tdee, bmr",
-            USER_NUTRITION_GOALS_TABLE
+            GOALS_TABLE
         );
 
         let saved_goals = sqlx::query_as::<_, NutritionGoals>(&query)
