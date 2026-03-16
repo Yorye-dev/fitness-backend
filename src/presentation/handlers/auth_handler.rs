@@ -18,6 +18,10 @@ pub async fn sign_in_handler (
     Json(sing_in_dto): Json<SignInData>
     ) -> impl IntoResponse
 {
+    if let Err(errors) = sing_in_dto.validate() {
+        return ResponseFactory::bad_request(&errors.join(", "));
+    }
+
     match services.login_use_case.execute(sing_in_dto).await {
         Ok(tokens) => ResponseFactory::ok(tokens),
         Err(e) => ResponseFactory::unauthorized(&e.to_string()),
@@ -28,6 +32,11 @@ pub async fn register_handler(
     State(services): State<Services>,
     Json(register_user_dto): Json<RegisterUserDto>
     ) -> impl IntoResponse{
+    
+    if let Err(errors) = register_user_dto.validate() {
+        return ResponseFactory::bad_request(&errors.join(", "));
+    }
+
     match services.register_user_use_case.execute(register_user_dto).await{
         Ok(tokens) => ResponseFactory::ok(tokens),
         Err(e) => ResponseFactory::bad_request(&e.to_string()),
