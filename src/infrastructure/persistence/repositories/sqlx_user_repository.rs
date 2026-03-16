@@ -6,6 +6,7 @@ use crate::domain::user::repository::UserRepository as UserRepositoryTrait;
 
 const USER_TABLE: &str = "users";
 
+#[derive(Clone)]
 pub struct SqlxUserRepository {
     pool: Pool<Postgres>,
 }
@@ -41,12 +42,12 @@ impl UserRepositoryTrait for SqlxUserRepository {
         Ok(saved_user)
     }
 
-    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<Option<SignInUser>, sqlx::Error> {
-        let query = format!("SELECT id, username, password_hash 
+    async fn get_user_by_id(&self, user_id: &Uuid) -> Result<Option<User>, sqlx::Error> {
+        let query = format!("SELECT id, username, password_hash, age, sex, height, weight, activity_level, goal
             FROM {}
             WHERE id = $1", USER_TABLE);
         
-        let user = sqlx::query_as::<_, SignInUser>(&query)
+        let user = sqlx::query_as::<_, User>(&query)
             .bind(user_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -80,7 +81,7 @@ impl UserRepositoryTrait for SqlxUserRepository {
         Ok(user)
     }
 
-    async fn exists(&self, user_id: &String) -> Result<bool, sqlx::Error> {
+    async fn exists(&self, user_id: &Uuid) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
             "
             SELECT EXISTS (

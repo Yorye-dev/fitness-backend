@@ -7,7 +7,9 @@ use crate::domain::user::factory::UserFactory;
 use crate::domain::nutrition::calculator::NutritionCalculator;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::auth::jwt::Jwt;
+use crate::application::auth::login::AuthTokens;
 
+#[derive(Clone)]
 pub struct RegisterUserUseCase<R: UserRepository, N: NutritionRepository> {
     user_repo: R,
     nutrition_repo: N,
@@ -19,7 +21,7 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         Self { user_repo, nutrition_repo, jwt }
     }
 
-    pub async fn execute(&self, dto: RegisterUserDto) -> Result<String, DomainError> {
+    pub async fn execute(&self, dto: RegisterUserDto) -> Result<AuthTokens, DomainError> {
         let user = UserFactory::create_user_from_dto(dto)
             .map_err(|e| DomainError::ValidationError(e))?;
 
@@ -28,10 +30,16 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         self.user_repo.save_user(&user).await?;
         self.nutrition_repo.save_user_goals(&goals).await?;
 
-        let token = self.jwt.generate_token(&user.id.to_string(), 60)
+        let access_token = self.jwt.generate_access_token(&user.id)
+            .map_err(|_| DomainError::GenerateTokenError)?;
+        
+        let refresh_token = self.jwt.generate_refresh_token(&user.id)
             .map_err(|_| DomainError::GenerateTokenError)?;
 
-        Ok(token)
+        Ok(AuthTokens {
+            access_token,
+            refresh_token,
+        })
     }
 
     fn generate_user_goals(user: &User) -> NutritionGoals {

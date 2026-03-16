@@ -18,7 +18,7 @@ pub struct User {
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
 pub struct SignInUser {
-    pub id: String,
+    pub id: Uuid,
     pub username: String,
     pub password_hash: String,
 }

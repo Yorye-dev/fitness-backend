@@ -55,7 +55,7 @@ impl AuthService {
         self.user_repo.save_user(&user).await?;
         self.goals_repo.save_user_goals(&user_goals).await?;
 
-        let token_data = self.jwt.generate_token(&user.id.to_string(), 60)
+        let token_data = self.jwt.generate_token(&user.id, 60)
             .map_err(|_| AuthError::GenerateTokenError);
 
         Ok(token_data?)        

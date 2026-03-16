@@ -25,6 +25,14 @@ impl ResponseFactory {
         (StatusCode::NOT_FOUND, Json(json!({ "error": message }))).into_response()
     }
 
+    pub fn bad_request(message: &str) -> Response {
+        (StatusCode::BAD_REQUEST, Json(json!({ "error": message }))).into_response()
+    }
+
+    pub fn unauthorized(message: &str) -> Response {
+        (StatusCode::UNAUTHORIZED, Json(json!({ "error": message }))).into_response()
+    }
+
     pub fn internal_error(message: &str) -> Response {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

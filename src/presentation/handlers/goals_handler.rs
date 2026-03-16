@@ -1,18 +1,15 @@
 use axum::{
-    extract::{State, Json},
+    extract::{State, Extension},
     response::IntoResponse,
 };
 use crate::services::Services;
-use crate::dtos::sign_data_dto::SignInData;
+use crate::auth::claims::Claims;
 use crate::presentation::factories::api_response_factory::ResponseFactory;
 
 pub async fn stats_handler (
-    State(services): State<Services> ,
-    Json(sing_in_dto): Json<SignInData>
-    ) -> impl IntoResponse 
+    State(_services): State<Services>,
+    Extension(_claims): Extension<Claims>,
+) -> impl IntoResponse 
 {
-    match services.auth_service.sing_in(sing_in_dto).await {
-        Ok(jwt_token) => ResponseFactory::ok(jwt_token),
-        Err(e) => ResponseFactory::not_found(&e.to_string()),
-    }
+    ResponseFactory::ok("Stats endpoint - to be implemented")
 }

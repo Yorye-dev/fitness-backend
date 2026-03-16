@@ -7,7 +7,7 @@ use crate::services::Services;
 use crate::auth::claims::Claims;
 
 #[derive(Deserialize)]
-struct NutritionQuery {
+pub struct NutritionQuery {
     date: Option<String>,
 }
 

@@ -6,6 +6,7 @@ use crate::domain::nutrition::repository::NutritionRepository as NutritionReposi
 
 const GOALS_TABLE: &str = "users_nutrition_goals";
 
+#[derive(Clone)]
 pub struct SqlxNutritionRepository {
     pool: Pool<Postgres>,
 }
