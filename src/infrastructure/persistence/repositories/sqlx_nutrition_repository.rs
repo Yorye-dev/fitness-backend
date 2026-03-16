@@ -80,11 +80,12 @@ impl NutritionRepositoryTrait for SqlxNutritionRepository {
 impl MealRepositoryTrait for SqlxNutritionRepository {
     async fn save_meal(&self, meal: &Meal) -> Result<Meal, sqlx::Error> {
         let saved_meal = sqlx::query_as::<_, Meal>(
-            "INSERT INTO meals (id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g"
+            "INSERT INTO meals (id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g"
         )
             .bind(&meal.id)
+            .bind(&meal.user_id)
             .bind(&meal.name)
             .bind(&meal.calories_per_100g)
             .bind(&meal.protein_per_100g)
@@ -96,51 +97,56 @@ impl MealRepositoryTrait for SqlxNutritionRepository {
         Ok(saved_meal)
     }
 
-    async fn get_meal_by_id(&self, meal_id: &Uuid) -> Result<Option<Meal>, sqlx::Error> {
+    async fn get_meal_by_id(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<Option<Meal>, sqlx::Error> {
         let meal = sqlx::query_as::<_, Meal>(
-            "SELECT id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
-             FROM meals WHERE id = $1"
+            "SELECT id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
+             FROM meals WHERE id = $1 AND user_id = $2"
         )
             .bind(meal_id)
+            .bind(user_id)
             .fetch_optional(&self.pool)
             .await?;
 
         Ok(meal)
     }
 
-    async fn get_all_meals(&self) -> Result<Vec<Meal>, sqlx::Error> {
+    async fn get_all_meals(&self, user_id: &Uuid) -> Result<Vec<Meal>, sqlx::Error> {
         let meals = sqlx::query_as::<_, Meal>(
-            "SELECT id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
-             FROM meals ORDER BY name"
+            "SELECT id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
+             FROM meals WHERE user_id = $1 ORDER BY name"
         )
+            .bind(user_id)
             .fetch_all(&self.pool)
             .await?;
 
         Ok(meals)
     }
 
-    async fn get_meals_paginated(&self, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error> {
-        let offset = (page - 1) * per_page;
+    async fn get_meals_paginated(&self, user_id: &Uuid, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error> {
+        let _offset = (page - 1) * per_page;
         
         let meals = sqlx::query_as::<_, Meal>(
-            "SELECT id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
-             FROM meals ORDER BY name LIMIT $1 OFFSET $2"
+            "SELECT id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
+             FROM meals WHERE user_id = $1 ORDER BY name LIMIT $2 OFFSET $3"
         )
+            .bind(user_id)
             .bind(per_page as i64)
-            .bind(offset as i64)
+            .bind(_offset as i64)
             .fetch_all(&self.pool)
             .await?;
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM meals")
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM meals WHERE user_id = $1")
+            .bind(user_id)
             .fetch_one(&self.pool)
             .await?;
 
         Ok((meals, total.0))
     }
 
-    async fn delete_meal(&self, meal_id: &Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM meals WHERE id = $1")
+    async fn delete_meal(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("DELETE FROM meals WHERE id = $1 AND user_id = $2")
             .bind(meal_id)
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 

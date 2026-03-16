@@ -15,10 +15,10 @@ pub trait NutritionRepository: Send + Sync {
 #[async_trait]
 pub trait MealRepository: Send + Sync {
     async fn save_meal(&self, meal: &Meal) -> Result<Meal, sqlx::Error>;
-    async fn get_meal_by_id(&self, meal_id: &Uuid) -> Result<Option<Meal>, sqlx::Error>;
-    async fn get_all_meals(&self) -> Result<Vec<Meal>, sqlx::Error>;
-    async fn get_meals_paginated(&self, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error>;
-    async fn delete_meal(&self, meal_id: &Uuid) -> Result<bool, sqlx::Error>;
+    async fn get_meal_by_id(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<Option<Meal>, sqlx::Error>;
+    async fn get_all_meals(&self, user_id: &Uuid) -> Result<Vec<Meal>, sqlx::Error>;
+    async fn get_meals_paginated(&self, user_id: &Uuid, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error>;
+    async fn delete_meal(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<bool, sqlx::Error>;
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -22,15 +22,21 @@ pub struct MealsQuery {
 
 pub async fn create_meal_handler(
     State(services): State<Services>,
-    Extension(_claims): Extension<Claims>,
+    Extension(claims): Extension<Claims>,
     Json(meal_dto): Json<CreateMealDto>,
 ) -> impl IntoResponse {
     if let Err(errors) = meal_dto.validate() {
         return ResponseFactory::bad_request(&errors.join(", "));
     }
 
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
     let meal = Meal {
         id: Uuid::new_v4(),
+        user_id,
         name: meal_dto.name,
         calories_per_100g: meal_dto.calories_per_100g,
         protein_per_100g: meal_dto.protein_per_100g,
@@ -46,13 +52,18 @@ pub async fn create_meal_handler(
 
 pub async fn get_meals_handler(
     State(services): State<Services>,
-    Extension(_claims): Extension<Claims>,
+    Extension(claims): Extension<Claims>,
     Query(query): Query<MealsQuery>,
 ) -> impl IntoResponse {
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(10).min(100).max(1);
 
-    match services.goals_repository.get_meals_paginated(page, per_page).await {
+    match services.goals_repository.get_meals_paginated(&user_id, page, per_page).await {
         Ok((meals, total)) => {
             let meta = PaginationMeta::new(page, per_page, total as u64);
             ResponseFactory::ok(serde_json::json!({
@@ -66,9 +77,14 @@ pub async fn get_meals_handler(
 
 pub async fn delete_meal_handler(
     State(services): State<Services>,
-    Extension(_claims): Extension<Claims>,
+    Extension(claims): Extension<Claims>,
     Json(meal_id): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
     let meal_id_str = meal_id.get("id")
         .and_then(|v| v.as_str())
         .ok_or("Missing or invalid meal id");
@@ -77,7 +93,7 @@ pub async fn delete_meal_handler(
         Ok(id_str) => {
             match Uuid::parse_str(id_str) {
                 Ok(id) => {
-                    match services.goals_repository.delete_meal(&id).await {
+                    match services.goals_repository.delete_meal(&id, &user_id).await {
                         Ok(true) => ResponseFactory::ok(serde_json::json!({ "message": "Meal deleted" })),
                         Ok(false) => ResponseFactory::not_found("Meal not found"),
                         Err(e) => ResponseFactory::internal_error(&e.to_string()),

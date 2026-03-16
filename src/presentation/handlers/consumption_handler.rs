@@ -53,7 +53,7 @@ pub async fn log_consumption_handler(
         Err(_) => return ResponseFactory::bad_request("Invalid meal_id format"),
     };
 
-    let meal = match services.goals_repository.get_meal_by_id(&meal_id).await {
+    let meal = match services.goals_repository.get_meal_by_id(&meal_id, &user_id).await {
         Ok(Some(m)) => m,
         Ok(None) => return ResponseFactory::not_found("Meal not found"),
         Err(e) => return ResponseFactory::internal_error(&e.to_string()),
@@ -64,7 +64,7 @@ pub async fn log_consumption_handler(
             Ok(date) => date,
             Err(_) => return ResponseFactory::bad_request("Invalid date format. Use YYYY-MM-DD"),
         },
-        None => chrono::Utc::now().date_naive(),
+        None => chrono::Local::now().date_naive(),
     };
 
     let quantity_factor = consumption_dto.quantity_grams / 100.0;
