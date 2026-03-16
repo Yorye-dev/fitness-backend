@@ -16,8 +16,7 @@ pub struct PaginationMeta {
 
 impl PaginationMeta {
     pub fn new(page: u32, per_page: u32, total: u64) -> Self {
-        let total_pages =
-            ((total as f64) / (per_page as f64)).ceil() as u32;
+        let total_pages = ((total as f64) / (per_page as f64)).ceil() as u32;
 
         let next_page = if page < total_pages {
             Some(page + 1)
@@ -25,11 +24,7 @@ impl PaginationMeta {
             None
         };
 
-        let prev_page = if page > 1 {
-            Some(page - 1)
-        } else {
-            None
-        };
+        let prev_page = if page > 1 { Some(page - 1) } else { None };
 
         Self {
             page,

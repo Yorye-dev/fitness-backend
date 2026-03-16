@@ -1,6 +1,6 @@
 use crate::auth::middleware::authorization_middleware;
 use crate::presentation::handlers::consumption_handler::{
-    daily_progress_handler, log_consumption_handler,
+    consumptions_handler, daily_progress_handler, log_consumption_handler, stats_handler,
 };
 use crate::presentation::handlers::meals_handler::{
     create_meal_handler, delete_meal_handler, get_meals_handler,
@@ -28,6 +28,8 @@ pub fn protected_routes(services: Services) -> Router {
         .route("/user", put(update_user_handler))
         .route("/consume", post(log_consumption_handler))
         .route("/progress", get(daily_progress_handler))
+        .route("/consumptions", get(consumptions_handler))
+        .route("/stats", get(stats_handler))
         .layer(middleware::from_fn_with_state(
             services.clone(),
             authorization_middleware,

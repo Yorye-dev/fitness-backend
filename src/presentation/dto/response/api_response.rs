@@ -1,5 +1,5 @@
-use serde::Serialize;
 use super::pagination::PaginationMeta;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct ApiResponse<T> {

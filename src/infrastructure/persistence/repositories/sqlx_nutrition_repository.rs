@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 use chrono::NaiveDate;
 use crate::domain::nutrition::goals::NutritionGoals;
@@ -9,6 +9,7 @@ use crate::domain::nutrition::repository::{
     NutritionRepository as NutritionRepositoryTrait, 
     MealRepository as MealRepositoryTrait,
     ConsumptionRepository as ConsumptionRepositoryTrait,
+    ConsumptionWithMeal, StatsSummary,
 };
 
 #[derive(Clone)]
@@ -118,6 +119,25 @@ impl MealRepositoryTrait for SqlxNutritionRepository {
         Ok(meals)
     }
 
+    async fn get_meals_paginated(&self, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error> {
+        let offset = (page - 1) * per_page;
+        
+        let meals = sqlx::query_as::<_, Meal>(
+            "SELECT id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
+             FROM meals ORDER BY name LIMIT $1 OFFSET $2"
+        )
+            .bind(per_page as i64)
+            .bind(offset as i64)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM meals")
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok((meals, total.0))
+    }
+
     async fn delete_meal(&self, meal_id: &Uuid) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("DELETE FROM meals WHERE id = $1")
             .bind(meal_id)
@@ -171,5 +191,163 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
             .await?;
 
         Ok(result.rows_affected() > 0)
+    }
+
+    async fn get_consumptions_paginated(
+        &self, 
+        user_id: &Uuid, 
+        page: u32, 
+        per_page: u32, 
+        start_date: Option<NaiveDate>, 
+        end_date: Option<NaiveDate>
+    ) -> Result<(Vec<ConsumptionWithMeal>, i64), sqlx::Error> {
+        let _offset = (page - 1) * per_page;
+
+        let mut query = String::from(
+            "SELECT dc.id, dc.user_id, dc.date, dc.meal_id, dc.quantity_grams, 
+                    dc.calories_consumed, dc.protein_consumed, dc.carbs_consumed, dc.fat_consumed,
+                    m.name as meal_name, m.calories_per_100g, m.protein_per_100g, m.carbs_per_100g, m.fat_per_100g
+             FROM daily_consumption dc
+             JOIN meals m ON dc.meal_id = m.id
+             WHERE dc.user_id = $1"
+        );
+
+        let mut count_query = "SELECT COUNT(*) FROM daily_consumption dc WHERE dc.user_id = $1".to_string();
+        let mut param_idx = 2;
+
+        if let Some(_start) = start_date {
+            query.push_str(&format!(" AND dc.date >= ${}", param_idx));
+            count_query.push_str(&format!(" AND dc.date >= ${}", param_idx));
+            param_idx += 1;
+        }
+        if let Some(_end) = end_date {
+            query.push_str(&format!(" AND dc.date <= ${}", param_idx));
+            count_query.push_str(&format!(" AND dc.date <= ${}", param_idx));
+            param_idx += 1;
+        }
+
+        query.push_str(&format!(" ORDER BY dc.date DESC, dc.id LIMIT ${} OFFSET ${}", param_idx, param_idx + 1));
+
+        let mut rows = sqlx::query(&query)
+            .bind(user_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let consumptions: Vec<ConsumptionWithMeal> = rows.iter_mut().map(|row| {
+            ConsumptionWithMeal {
+                consumption: DailyConsumption {
+                    id: row.get("id"),
+                    user_id: row.get("user_id"),
+                    date: row.get("date"),
+                    meal_id: row.get("meal_id"),
+                    quantity_grams: row.get("quantity_grams"),
+                    calories_consumed: row.get("calories_consumed"),
+                    protein_consumed: row.get("protein_consumed"),
+                    carbs_consumed: row.get("carbs_consumed"),
+                    fat_consumed: row.get("fat_consumed"),
+                },
+                meal_name: row.get("meal_name"),
+                meal_calories: row.get("calories_per_100g"),
+                meal_protein: row.get("protein_per_100g"),
+                meal_carbs: row.get("carbs_per_100g"),
+                meal_fat: row.get("fat_per_100g"),
+            }
+        }).collect();
+
+        let mut count_rows = sqlx::query(&count_query)
+            .bind(user_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let total: i64 = count_rows.iter_mut().map(|row| row.get("count")).next().unwrap_or(0);
+
+        Ok((consumptions, total))
+    }
+
+    async fn get_consumptions_by_date_range(
+        &self, 
+        user_id: &Uuid, 
+        start_date: &NaiveDate, 
+        end_date: &NaiveDate
+    ) -> Result<Vec<ConsumptionWithMeal>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT dc.id, dc.user_id, dc.date, dc.meal_id, dc.quantity_grams, 
+                    dc.calories_consumed, dc.protein_consumed, dc.carbs_consumed, dc.fat_consumed,
+                    m.name as meal_name, m.calories_per_100g, m.protein_per_100g, m.carbs_per_100g, m.fat_per_100g
+             FROM daily_consumption dc
+             JOIN meals m ON dc.meal_id = m.id
+             WHERE dc.user_id = $1 AND dc.date >= $2 AND dc.date <= $3
+             ORDER BY dc.date DESC, dc.id"
+        )
+            .bind(user_id)
+            .bind(start_date)
+            .bind(end_date)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let consumptions: Vec<ConsumptionWithMeal> = rows.iter().map(|row| {
+            ConsumptionWithMeal {
+                consumption: DailyConsumption {
+                    id: row.get("id"),
+                    user_id: row.get("user_id"),
+                    date: row.get("date"),
+                    meal_id: row.get("meal_id"),
+                    quantity_grams: row.get("quantity_grams"),
+                    calories_consumed: row.get("calories_consumed"),
+                    protein_consumed: row.get("protein_consumed"),
+                    carbs_consumed: row.get("carbs_consumed"),
+                    fat_consumed: row.get("fat_consumed"),
+                },
+                meal_name: row.get("meal_name"),
+                meal_calories: row.get("calories_per_100g"),
+                meal_protein: row.get("protein_per_100g"),
+                meal_carbs: row.get("carbs_per_100g"),
+                meal_fat: row.get("fat_per_100g"),
+            }
+        }).collect();
+
+        Ok(consumptions)
+    }
+
+    async fn get_date_range_stats(
+        &self, 
+        user_id: &Uuid, 
+        start_date: &NaiveDate, 
+        end_date: &NaiveDate
+    ) -> Result<StatsSummary, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT 
+                COUNT(DISTINCT date) as total_days,
+                SUM(calories_consumed) as total_calories,
+                SUM(protein_consumed) as total_protein,
+                SUM(carbs_consumed) as total_carbs,
+                SUM(fat_consumed) as total_fat
+             FROM daily_consumption 
+             WHERE user_id = $1 AND date >= $2 AND date <= $3"
+        )
+            .bind(user_id)
+            .bind(start_date)
+            .bind(end_date)
+            .fetch_one(&self.pool)
+            .await?;
+
+        let total_days: i32 = row.get("total_days");
+        let total_calories: f32 = row.get("total_calories");
+        let total_protein: f32 = row.get("total_protein");
+        let total_carbs: f32 = row.get("total_carbs");
+        let total_fat: f32 = row.get("total_fat");
+
+        let days = total_days as f32;
+        Ok(StatsSummary {
+            total_days,
+            avg_calories: if days > 0.0 { total_calories / days } else { 0.0 },
+            avg_protein: if days > 0.0 { total_protein / days } else { 0.0 },
+            avg_carbs: if days > 0.0 { total_carbs / days } else { 0.0 },
+            avg_fat: if days > 0.0 { total_fat / days } else { 0.0 },
+            total_calories,
+            total_protein,
+            total_carbs,
+            total_fat,
+        })
     }
 }

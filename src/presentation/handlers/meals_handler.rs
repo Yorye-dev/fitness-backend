@@ -1,9 +1,10 @@
 use axum::{
-    extract::{State, Extension},
+    extract::{State, Extension, Query},
     response::IntoResponse,
     routing::{get, post, delete},
     Json, Router,
 };
+use serde::Deserialize;
 use uuid::Uuid;
 use crate::services::Services;
 use crate::auth::claims::Claims;
@@ -11,6 +12,13 @@ use crate::domain::nutrition::meal::Meal;
 use crate::domain::nutrition::repository::MealRepository;
 use crate::dtos::create_meal_dto::CreateMealDto;
 use crate::presentation::factories::api_response_factory::ResponseFactory;
+use crate::presentation::dto::response::pagination::PaginationMeta;
+
+#[derive(Deserialize)]
+pub struct MealsQuery {
+    page: Option<u32>,
+    per_page: Option<u32>,
+}
 
 pub async fn create_meal_handler(
     State(services): State<Services>,
@@ -39,9 +47,19 @@ pub async fn create_meal_handler(
 pub async fn get_meals_handler(
     State(services): State<Services>,
     Extension(_claims): Extension<Claims>,
+    Query(query): Query<MealsQuery>,
 ) -> impl IntoResponse {
-    match services.goals_repository.get_all_meals().await {
-        Ok(meals) => ResponseFactory::ok(meals),
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = query.per_page.unwrap_or(10).min(100).max(1);
+
+    match services.goals_repository.get_meals_paginated(page, per_page).await {
+        Ok((meals, total)) => {
+            let meta = PaginationMeta::new(page, per_page, total as u64);
+            ResponseFactory::ok(serde_json::json!({
+                "data": meals,
+                "meta": meta
+            }))
+        },
         Err(e) => ResponseFactory::internal_error(&e.to_string()),
     }
 }

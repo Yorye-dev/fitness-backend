@@ -10,13 +10,28 @@ use chrono::NaiveDate;
 use crate::services::Services;
 use crate::auth::claims::Claims;
 use crate::domain::nutrition::repository::{ConsumptionRepository, MealRepository, NutritionRepository};
-use crate::domain::nutrition::consumption::{DailyConsumption, DailySummary};
+use crate::domain::nutrition::consumption::DailyConsumption;
 use crate::dtos::log_consumption_dto::LogConsumptionDto;
 use crate::presentation::factories::api_response_factory::ResponseFactory;
+use crate::presentation::dto::response::pagination::PaginationMeta;
 
 #[derive(Deserialize)]
 pub struct DailyProgressQuery {
     date: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct ConsumptionsQuery {
+    page: Option<u32>,
+    per_page: Option<u32>,
+    start_date: Option<String>,
+    end_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct StatsQuery {
+    start_date: Option<String>,
+    end_date: Option<String>,
 }
 
 pub async fn log_consumption_handler(
@@ -163,9 +178,91 @@ pub async fn daily_progress_handler(
     ResponseFactory::ok(summary)
 }
 
+pub async fn consumptions_handler(
+    State(services): State<Services>,
+    Extension(claims): Extension<Claims>,
+    Query(query): Query<ConsumptionsQuery>,
+) -> impl IntoResponse {
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = query.per_page.unwrap_or(10).min(100).max(1);
+
+    let start_date = match &query.start_date {
+        Some(d) => match NaiveDate::parse_from_str(d, "%Y-%m-%d") {
+            Ok(date) => Some(date),
+            Err(_) => return ResponseFactory::bad_request("Invalid start_date format. Use YYYY-MM-DD"),
+        },
+        None => None,
+    };
+
+    let end_date = match &query.end_date {
+        Some(d) => match NaiveDate::parse_from_str(d, "%Y-%m-%d") {
+            Ok(date) => Some(date),
+            Err(_) => return ResponseFactory::bad_request("Invalid end_date format. Use YYYY-MM-DD"),
+        },
+        None => None,
+    };
+
+    match services.goals_repository.get_consumptions_paginated(&user_id, page, per_page, start_date, end_date).await {
+        Ok((consumptions, total)) => {
+            let meta = PaginationMeta::new(page, per_page, total as u64);
+            ResponseFactory::ok(serde_json::json!({
+                "data": consumptions,
+                "meta": meta
+            }))
+        },
+        Err(e) => ResponseFactory::internal_error(&e.to_string()),
+    }
+}
+
+pub async fn stats_handler(
+    State(services): State<Services>,
+    Extension(claims): Extension<Claims>,
+    Query(query): Query<StatsQuery>,
+) -> impl IntoResponse {
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
+    let today = chrono::Local::now().date_naive();
+    let thirty_days_ago = today - chrono::Duration::days(30);
+
+    let start_date = match &query.start_date {
+        Some(d) => match NaiveDate::parse_from_str(d, "%Y-%m-%d") {
+            Ok(date) => date,
+            Err(_) => return ResponseFactory::bad_request("Invalid start_date format. Use YYYY-MM-DD"),
+        },
+        None => thirty_days_ago,
+    };
+
+    let end_date = match &query.end_date {
+        Some(d) => match NaiveDate::parse_from_str(d, "%Y-%m-%d") {
+            Ok(date) => date,
+            Err(_) => return ResponseFactory::bad_request("Invalid end_date format. Use YYYY-MM-DD"),
+        },
+        None => today,
+    };
+
+    match services.goals_repository.get_date_range_stats(&user_id, &start_date, &end_date).await {
+        Ok(stats) => ResponseFactory::ok(serde_json::json!({
+            "start_date": start_date.format("%Y-%m-%d").to_string(),
+            "end_date": end_date.format("%Y-%m-%d").to_string(),
+            "stats": stats
+        })),
+        Err(e) => ResponseFactory::internal_error(&e.to_string()),
+    }
+}
+
 pub fn consumption_routes(services: Services) -> Router {
     Router::new()
         .route("/log", post(log_consumption_handler))
         .route("/progress", get(daily_progress_handler))
+        .route("/consumptions", get(consumptions_handler))
+        .route("/stats", get(stats_handler))
         .with_state(services)
 }
