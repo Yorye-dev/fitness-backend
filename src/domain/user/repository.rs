@@ -9,4 +9,5 @@ pub trait UserRepository: Send + Sync {
     async fn get_user_by_username(&self, username: &String) -> Result<Option<User>, sqlx::Error>;
     async fn get_sign_in_user_by_username(&self, username: &String) -> Result<Option<SignInUser>, sqlx::Error>;
     async fn exists(&self, user_id: &Uuid) -> Result<bool, sqlx::Error>;
+    async fn update_password(&self, user_id: &Uuid, new_password_hash: &str) -> Result<bool, sqlx::Error>;
 }

@@ -83,4 +83,16 @@ impl UserRepositoryTrait for SqlxUserRepository {
 
         Ok(result.exists.unwrap_or(false))
     }
+
+    async fn update_password(&self, user_id: &Uuid, new_password_hash: &str) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            "UPDATE users SET password_hash = $1 WHERE id = $2"
+        )
+            .bind(new_password_hash)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
 }
