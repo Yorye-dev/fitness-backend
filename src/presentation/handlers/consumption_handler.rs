@@ -110,21 +110,54 @@ pub async fn daily_progress_handler(
     let total_carbs: f32 = consumptions.iter().map(|c| c.carbs_consumed).sum();
     let total_fat: f32 = consumptions.iter().map(|c| c.fat_consumed).sum();
 
-    let summary = DailySummary {
+    let calc_percent = |consumed: f32, goal: f32| -> f32 {
+        if goal > 0.0 {
+            (consumed / goal) * 100.0
+        } else {
+            0.0
+        }
+    };
+
+    let consumed = crate::domain::nutrition::consumption::MacroSummary {
+        calories: total_calories,
+        protein: total_protein,
+        carbs: total_carbs,
+        fat: total_fat,
+    };
+
+    let goals_summary = crate::domain::nutrition::consumption::MacroSummary {
+        calories: goals.tdee,
+        protein: goals.protein_goal,
+        carbs: goals.carbs_goal,
+        fat: goals.fats_goal,
+    };
+
+    let remaining = crate::domain::nutrition::consumption::MacroSummary {
+        calories: goals.tdee - total_calories,
+        protein: goals.protein_goal - total_protein,
+        carbs: goals.carbs_goal - total_carbs,
+        fat: goals.fats_goal - total_fat,
+    };
+
+    let avg_percent = (
+        calc_percent(total_calories, goals.tdee) +
+        calc_percent(total_protein, goals.protein_goal) +
+        calc_percent(total_carbs, goals.carbs_goal) +
+        calc_percent(total_fat, goals.fats_goal)
+    ) / 4.0;
+
+    let summary = crate::domain::nutrition::consumption::DailySummary {
         date: date.format("%Y-%m-%d").to_string(),
-        total_calories,
-        total_protein,
-        total_carbs,
-        total_fat,
-        goal_calories: goals.tdee,
-        goal_protein: goals.protein_goal,
-        goal_carbs: goals.carbs_goal,
-        goal_fat: goals.fats_goal,
-        remaining_calories: goals.tdee - total_calories,
-        remaining_protein: goals.protein_goal - total_protein,
-        remaining_carbs: goals.carbs_goal - total_carbs,
-        remaining_fat: goals.fats_goal - total_fat,
-        meals_consumed: vec![],
+        consumed,
+        goals: goals_summary,
+        remaining,
+        progress_percentage: avg_percent,
+        macros: crate::domain::nutrition::consumption::MacroProgress {
+            calories_percent: calc_percent(total_calories, goals.tdee),
+            protein_percent: calc_percent(total_protein, goals.protein_goal),
+            carbs_percent: calc_percent(total_carbs, goals.carbs_goal),
+            fat_percent: calc_percent(total_fat, goals.fats_goal),
+        },
     };
 
     ResponseFactory::ok(summary)

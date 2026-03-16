@@ -18,28 +18,25 @@ pub struct DailyConsumption {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DailySummary {
     pub date: String,
-    pub total_calories: f32,
-    pub total_protein: f32,
-    pub total_carbs: f32,
-    pub total_fat: f32,
-    pub goal_calories: f32,
-    pub goal_protein: f32,
-    pub goal_carbs: f32,
-    pub goal_fat: f32,
-    pub remaining_calories: f32,
-    pub remaining_protein: f32,
-    pub remaining_carbs: f32,
-    pub remaining_fat: f32,
-    pub meals_consumed: Vec<ConsumedMeal>,
+    pub consumed: MacroSummary,
+    pub goals: MacroSummary,
+    pub remaining: MacroSummary,
+    pub progress_percentage: f32,
+    pub macros: MacroProgress,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ConsumedMeal {
-    pub meal_id: Uuid,
-    pub meal_name: String,
-    pub quantity_grams: f32,
+pub struct MacroSummary {
     pub calories: f32,
     pub protein: f32,
     pub carbs: f32,
     pub fat: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MacroProgress {
+    pub calories_percent: f32,
+    pub protein_percent: f32,
+    pub carbs_percent: f32,
+    pub fat_percent: f32,
 }
