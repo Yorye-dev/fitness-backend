@@ -7,7 +7,7 @@ use crate::presentation::handlers::meals_handler::{
 };
 use crate::presentation::handlers::user_handler::me_handler;
 use crate::presentation::handlers::user_routes_handler::{
-    change_password_handler, get_goals_handler, update_goals_handler,
+    change_password_handler, get_goals_handler, update_goals_handler, update_user_handler,
 };
 use crate::services::Services;
 use axum::{
@@ -25,6 +25,7 @@ pub fn protected_routes(services: Services) -> Router {
         .route("/goals", get(get_goals_handler))
         .route("/goals", put(update_goals_handler))
         .route("/change-password", put(change_password_handler))
+        .route("/user", put(update_user_handler))
         .route("/consume", post(log_consumption_handler))
         .route("/progress", get(daily_progress_handler))
         .layer(middleware::from_fn_with_state(

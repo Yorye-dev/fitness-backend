@@ -11,6 +11,7 @@ use crate::domain::user::repository::UserRepository;
 use crate::domain::nutrition::repository::NutritionRepository;
 use crate::dtos::change_password_dto::ChangePasswordDto;
 use crate::dtos::update_goals_dto::UpdateGoalsDto;
+use crate::dtos::update_user_dto::UpdateUserDto;
 use crate::presentation::factories::api_response_factory::ResponseFactory;
 
 pub async fn get_goals_handler(
@@ -92,10 +93,38 @@ pub async fn change_password_handler(
     }
 }
 
+pub async fn update_user_handler(
+    State(services): State<Services>,
+    Extension(claims): Extension<Claims>,
+    Json(user_dto): Json<UpdateUserDto>,
+) -> impl IntoResponse {
+    if let Err(errors) = user_dto.validate() {
+        return ResponseFactory::bad_request(&errors.join(", "));
+    }
+
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(id) => id,
+        Err(_) => return ResponseFactory::bad_request("Invalid user ID"),
+    };
+
+    match services.update_user_use_case.execute(user_id, user_dto).await {
+        Ok((user, goals)) => ResponseFactory::ok(serde_json::json!({
+            "user": user,
+            "goals": goals
+        })),
+        Err(e) => match e {
+            crate::domain::errors::DomainError::UserNotFound => ResponseFactory::not_found("User not found"),
+            crate::domain::errors::DomainError::ValidationError(error) => ResponseFactory::bad_request(&error),
+            _ => ResponseFactory::internal_error(&e.to_string()),
+        },
+    }
+}
+
 pub fn user_routes(services: Services) -> Router {
     Router::new()
         .route("/goals", get(get_goals_handler))
         .route("/goals", put(update_goals_handler))
         .route("/change-password", put(change_password_handler))
+        .route("/user", put(update_user_handler))
         .with_state(services)
 }

@@ -95,4 +95,22 @@ impl UserRepositoryTrait for SqlxUserRepository {
 
         Ok(result.rows_affected() > 0)
     }
+
+    async fn update_user(&self, user: &User) -> Result<User, sqlx::Error> {
+        let updated_user = sqlx::query_as::<_, User>(
+            "UPDATE users SET weight = $1, height = $2, age = $3, activity_level = $4, goal = $5
+             WHERE id = $6
+             RETURNING id, username, password_hash, age, sex, height, weight, activity_level, goal"
+        )
+            .bind(user.weight)
+            .bind(user.height)
+            .bind(user.age)
+            .bind(&user.activity_level)
+            .bind(&user.goal)
+            .bind(&user.id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(updated_user)
+    }
 }

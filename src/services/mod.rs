@@ -6,6 +6,7 @@ use crate::application::auth::verify_token::VerifyTokenUseCase;
 use crate::application::user::change_password::ChangePasswordUseCase;
 use crate::application::user::register_user::RegisterUserUseCase;
 use crate::application::user::update_goals::UpdateGoalsUseCase;
+use crate::application::user::update_user::UpdateUserUseCase;
 use crate::auth::jwt::Jwt;
 use crate::infrastructure::persistence::repositories::SqlxNutritionRepository;
 use crate::infrastructure::persistence::repositories::SqlxUserRepository;
@@ -18,6 +19,7 @@ pub struct Services {
     pub refresh_token_use_case: RefreshTokenUseCase<SqlxUserRepository>,
     pub change_password_use_case: ChangePasswordUseCase<SqlxUserRepository>,
     pub update_goals_use_case: UpdateGoalsUseCase<SqlxNutritionRepository>,
+    pub update_user_use_case: UpdateUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
     pub user_repository: SqlxUserRepository,
     pub goals_repository: SqlxNutritionRepository,
 }
@@ -46,7 +48,11 @@ impl Services {
             ),
             refresh_token_use_case: RefreshTokenUseCase::new(user_repo_clone, jwt),
             change_password_use_case: ChangePasswordUseCase::new(user_repository.clone()),
-            update_goals_use_case: UpdateGoalsUseCase::new(goals_repo_clone),
+            update_goals_use_case: UpdateGoalsUseCase::new(goals_repo_clone.clone()),
+            update_user_use_case: UpdateUserUseCase::new(
+                user_repository.clone(),
+                goals_repository.clone(),
+            ),
             user_repository,
             goals_repository,
         }
