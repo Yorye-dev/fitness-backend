@@ -3,22 +3,13 @@ use axum::{
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
-    extract::{State,Json},
-
+    extract::State,
 };
-use crate::{
-    auth::{claims::Claims, jwt::Jwt},
-    services::Services
-};
-
-#[derive(Debug)]
-pub struct AuthError {
-    pub message: String,
-    pub status_code: StatusCode,
-}
+use crate::app_state::AppState;
+use crate::domain::errors::DomainError;
 
 pub async fn authorization_middleware(
-    State(services): State<Services>,
+    State(state): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
@@ -37,25 +28,28 @@ pub async fn authorization_middleware(
         }
     };
 
-    // Verificar el token usando tu AuthService
-    let claims = match services
-        .auth_service
-        .get_claims_if_valid(token.to_string())
+    let claims = match state
+        .verify_token_use_case
+        .execute(token.to_string())
         .await
     {
         Ok(c) => c,
-        Err(_) => {
+        Err(e) => {
+            let (status, message) = match e {
+                DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
+                DomainError::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
+                DomainError::MissingToken => (StatusCode::UNAUTHORIZED, "Missing token"),
+                _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            };
             return Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::from("Invalid token"))
+                .status(status)
+                .body(Body::from(message))
                 .unwrap();
         }
     };
 
-    // Guardar claims en las extensiones de la request
     req.extensions_mut().insert(claims);
 
-    // Continuar con el siguiente handler
     next.run(req).await
 }
 

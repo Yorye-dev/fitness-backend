@@ -1,5 +1,4 @@
-use serde::{Serialize, Deserialize};
-use sqlx::FromRow;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -9,5 +8,5 @@ pub struct CreateUserNutritionsGoalsDto {
     pub fats_goal: f32,
     pub carbs_goal: f32,
     pub tdee: f32,
-    pub bmr: f32
+    pub bmr: f32,
 }

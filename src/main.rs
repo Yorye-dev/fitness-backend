@@ -1,77 +1,91 @@
-pub mod utils;
-pub mod enums;
-pub mod entities;
-pub mod congfig;
-pub mod repositories;
-pub mod dtos;
-pub mod factories;
-pub mod services;
-pub mod handlers;
-pub mod routes;
-pub mod errors;
-pub mod auth;
-//use std::io::{self, Write};
-use dotenv::dotenv;
-// use dtos::register_user_dto::RegisterUserDto;
+use std::env;
 
-use services::Services;
-// use enums::activity_level;
-use congfig::database::init_db_pg_pool;
+use axum::http::{HeaderValue, Method};
+use tower_http::cors::{Any, CorsLayer};
+
+use dotenv::dotenv;
+
+pub mod application;
+pub mod app_state;
+pub mod auth;
+pub mod config;
+pub mod domain;
+pub mod dtos;
+pub mod errors;
+pub mod infrastructure;
+pub mod presentation;
+pub mod shared;
+
+use app_state::AppState;
+use config::database::init_db_pg_pool;
 
 #[tokio::main]
 async fn main() {
-
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL").expect("Error en .env falta DATABASE_URL");
-    let app_url = env::var("APP_URL").expect("Error en .env falta APP_URL");
-    let project_name = env::var("PROJECT_NAME").expect("Error en .env falta PROJECT_NAME");
-    let secret_key = env::var("SECRET_KEY").expect("Error en .env falta SECRET_KEY");
+    let database_url =
+        env::var("DATABASE_URL")
+            .expect("Falta DATABASE_URL en el entorno");
 
-    let _pool = init_db_pg_pool(&database_url).await.unwrap();
-    let services = Services::new(_pool, secret_key); // Estructura de datos, de los servicios
-    
-    println!("{} corriendo en: {}", project_name, app_url);
+    let app_url =
+        env::var("APP_URL")
+            .expect("Falta APP_URL en el entorno");
 
-    let app = routes::app_routes(services.clone());
-    let listener = tokio::net::TcpListener::bind(app_url).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let project_name =
+        env::var("PROJECT_NAME")
+            .expect("Falta PROJECT_NAME en el entorno");
 
-    /*
-    let register_user_dto = RegisterUserDto {
-        username: "Paco".into(),
-        plain_password: "123".into(),
-        sex: "M".into(),
-        weight: 83.0,
-        height: 164,
-        age: 24,
-        activity_level: activity_level::ActivityLevel::Sedentary.as_string()
-    };
+    let secret_key =
+        env::var("SECRET_KEY")
+            .expect("Falta SECRET_KEY en el entorno");
 
-    //services.user_service.register_user(register_user_dto).await;
-    //
-    //TODO: Implemenatar esta logica en capa de servicios.
-    println!("Introduce la altura: ");
-    io::stdout().flush().unwrap();
-    let mut height = String::new();
-    io::stdin().read_line(&mut height).expect("Error al introducir la altura");
-    let height: i32 = height.trim().parse().expect("Introduce un número válido");
+    let pool =
+        init_db_pg_pool(&database_url)
+            .await
+            .expect("No se pudo conectar a PostgreSQL");
 
-    println!("Introduce la peso: ");
-    io::stdout().flush().unwrap();
-    let mut weight = String::new();
-    io::stdin().read_line(&mut weight).expect("Error al introducir el peso");
-    let weight: f32 = weight.trim().parse().expect("Introduce un número válido");
+    let app_state =
+        AppState::new(
+            pool,
+            secret_key,
+        );
 
-    println!("Introduce la edad: ");
-    io::stdout().flush().unwrap();
-    let mut age = String::new();
-    io::stdin().read_line(&mut age).expect("Error al introducir la edad");
-    let age: i32 = age.trim().parse().expect("Introduce un número válido");
+    let cors = CorsLayer::new()
+        .allow_origin(
+            "http://localhost:5173"
+                .parse::<HeaderValue>()
+                .expect("Origen CORS inválido"),
+        )
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(Any);
 
-    // Conexión con la bdd
-    
-    //config
-    println!("El tmp es: {}", utils::metrics::calculate_tdee(weight, height, age))
-    */
+    let app =
+        presentation::routes::app_routes(
+            app_state,
+        )
+        .layer(cors);
+
+    let listener =
+        tokio::net::TcpListener::bind(
+            &app_url,
+        )
+        .await
+        .expect("No se pudo abrir el puerto HTTP");
+
+    println!(
+        "{} corriendo en: {}",
+        project_name,
+        app_url,
+    );
+
+    axum::serve(listener, app)
+        .await
+        .expect("Error ejecutando el servidor");
 }

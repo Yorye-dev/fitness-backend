@@ -1,36 +1,60 @@
 use sqlx::PgPool;
 
- pub mod user_service;
- pub mod auth_service;
- pub mod nutrition_service;
- pub mod goal_service;
- pub mod errors;
-
-use crate::repositories::user_nutrition_goals::GoalsRepository;
-use crate::services::user_service::UserService;
-use crate::repositories::user_repository::UserRepository;
-use crate::services::auth_service::AuthService;
-
+use crate::application::auth::login::LoginUseCase;
+use crate::application::auth::refresh_token::RefreshTokenUseCase;
+use crate::application::auth::verify_token::VerifyTokenUseCase;
+use crate::application::user::change_password::ChangePasswordUseCase;
+use crate::application::user::register_user::RegisterUserUseCase;
+use crate::application::user::update_goals::UpdateGoalsUseCase;
+use crate::application::user::update_user::UpdateUserUseCase;
 use crate::auth::jwt::Jwt;
+use crate::infrastructure::persistence::repositories::SqlxNutritionRepository;
+use crate::infrastructure::persistence::repositories::SqlxUserRepository;
 
 #[derive(Clone)]
 pub struct Services {
-    pub user_service: UserService,
-    pub auth_service: AuthService,
-    //pub user_repository: UserRepository , otroservicio 
-
+    pub register_user_use_case: RegisterUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
+    pub login_use_case: LoginUseCase<SqlxUserRepository>,
+    pub verify_token_use_case: VerifyTokenUseCase<SqlxUserRepository>,
+    pub refresh_token_use_case: RefreshTokenUseCase<SqlxUserRepository>,
+    pub change_password_use_case: ChangePasswordUseCase<SqlxUserRepository>,
+    pub update_goals_use_case: UpdateGoalsUseCase<SqlxNutritionRepository>,
+    pub update_user_use_case: UpdateUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
+    pub user_repository: SqlxUserRepository,
+    pub goals_repository: SqlxNutritionRepository,
 }
 
 impl Services {
-    pub fn new (pool: PgPool, secret_key: String) -> Self {
-        
+    pub fn new(pool: PgPool, secret_key: String) -> Self {
         let jwt = Jwt::new(secret_key);
 
-        let user_repository = UserRepository::new(pool.clone());
-        let goals_repository = GoalsRepository::new(pool.clone());//mas repositories
-        Self { 
-            user_service: UserService::new(user_repository.clone(), goals_repository.clone()),
-            auth_service: AuthService::new(user_repository.clone(),goals_repository.clone() ,jwt)
+        let user_repository = SqlxUserRepository::new(pool.clone());
+        let goals_repository = SqlxNutritionRepository::new(pool.clone());
+
+        let user_repo_clone = user_repository.clone();
+        let goals_repo_clone = goals_repository.clone();
+        let jwt_clone = jwt.clone();
+
+        Self {
+            register_user_use_case: RegisterUserUseCase::new(
+                user_repository.clone(),
+                goals_repository.clone(),
+                jwt.clone(),
+            ),
+            login_use_case: LoginUseCase::new(user_repo_clone.clone(), jwt_clone.clone()),
+            verify_token_use_case: VerifyTokenUseCase::new(
+                user_repo_clone.clone(),
+                jwt_clone.clone(),
+            ),
+            refresh_token_use_case: RefreshTokenUseCase::new(user_repo_clone, jwt),
+            change_password_use_case: ChangePasswordUseCase::new(user_repository.clone()),
+            update_goals_use_case: UpdateGoalsUseCase::new(goals_repo_clone.clone()),
+            update_user_use_case: UpdateUserUseCase::new(
+                user_repository.clone(),
+                goals_repository.clone(),
+            ),
+            user_repository,
+            goals_repository,
         }
     }
 }
