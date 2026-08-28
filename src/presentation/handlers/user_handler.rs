@@ -1,31 +1,43 @@
 use axum::{
-    extract::{Extension, State},
-    response::IntoResponse,
+    extract::{
+        Extension,
+        State,
+    },
+    response::Response,
 };
 use uuid::Uuid;
+
+use crate::app_state::AppState;
 use crate::auth::claims::Claims;
-use crate::services::Services;
-use crate::presentation::factories::api_response_factory::ResponseFactory;
-use crate::domain::user::user::PublicUser;
-use crate::domain::user::repository::UserRepository;
+use crate::presentation::dto::response::user::user_response::UserResponse;
+use crate::presentation::errors::api_error::ApiError;
+use crate::presentation::factories::response_factory::ResponseFactory;
 
 pub async fn me_handler(
+    State(state): State<AppState>,
     Extension(claims): Extension<Claims>,
-    State(services): State<Services>,
-) -> impl IntoResponse {
-    let user_id = Uuid::parse_str(&claims.subject).ok();
-    
-    match user_id {
-        Some(id) => {
-            match services.user_repository.get_user_by_id(&id).await {
-                Ok(Some(user)) => {
-                    let public_user: PublicUser = PublicUser::from(user);
-                    ResponseFactory::ok(public_user)
-                },
-                Ok(None) => ResponseFactory::not_found("User not found"),
-                Err(_) => ResponseFactory::internal_error("Database error"),
-            }
-        },
-        None => ResponseFactory::bad_request("Invalid user ID in token"),
-    }
+) -> Result<Response, ApiError> {
+    let user_id = Uuid::parse_str(
+        &claims.subject,
+    )
+    .map_err(|_| ApiError::InvalidToken)?;
+
+    let user = state
+        .get_current_user_use_case
+        .execute(user_id)
+        .await
+        .map_err(|error| {
+            eprintln!(
+                "Failed to retrieve user {user_id}: {error}"
+            );
+
+            ApiError::Internal
+        })?
+        .ok_or(ApiError::UserNotFound)?;
+
+    Ok(
+        ResponseFactory::ok(
+            UserResponse::from(user),
+        ),
+    )
 }

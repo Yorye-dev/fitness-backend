@@ -5,11 +5,11 @@ use axum::{
     response::Response,
     extract::State,
 };
-use crate::services::Services;
+use crate::app_state::AppState;
 use crate::domain::errors::DomainError;
 
 pub async fn authorization_middleware(
-    State(services): State<Services>,
+    State(state): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
@@ -28,7 +28,7 @@ pub async fn authorization_middleware(
         }
     };
 
-    let claims = match services
+    let claims = match state
         .verify_token_use_case
         .execute(token.to_string())
         .await

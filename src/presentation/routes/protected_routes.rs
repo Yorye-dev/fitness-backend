@@ -1,39 +1,22 @@
-use crate::auth::middleware::authorization_middleware;
-use crate::presentation::handlers::consumption_handler::{
-    consumptions_handler, daily_progress_handler, log_consumption_handler, stats_handler,
-};
-use crate::presentation::handlers::meals_handler::{
-    create_meal_handler, delete_meal_handler, get_meals_handler,
-};
-use crate::presentation::handlers::user_handler::me_handler;
-use crate::presentation::handlers::user_routes_handler::{
-    change_password_handler, get_goals_handler, update_goals_handler, update_user_handler,
-};
-use crate::services::Services;
 use axum::{
     middleware,
-    routing::{delete, get, post, put},
+    routing::get,
     Router,
 };
 
-pub fn protected_routes(services: Services) -> Router {
-    let auth_router = Router::new()
-        .route("/me", get(me_handler))
-        .route("/meals", post(create_meal_handler))
-        .route("/meals", get(get_meals_handler))
-        .route("/meals", delete(delete_meal_handler))
-        .route("/goals", get(get_goals_handler))
-        .route("/goals", put(update_goals_handler))
-        .route("/change-password", put(change_password_handler))
-        .route("/user", put(update_user_handler))
-        .route("/consume", post(log_consumption_handler))
-        .route("/progress", get(daily_progress_handler))
-        .route("/consumptions", get(consumptions_handler))
-        .route("/stats", get(stats_handler))
-        .layer(middleware::from_fn_with_state(
-            services.clone(),
-            authorization_middleware,
-        ));
+use crate::app_state::AppState;
+use crate::auth::middleware::authorization_middleware;
+use crate::presentation::handlers::user_handler::me_handler;
 
-    Router::new().merge(auth_router).with_state(services)
+pub fn protected_routes(
+    state: AppState,
+) -> Router<AppState> {
+    Router::new()
+        .route("/me", get(me_handler))
+        .layer(
+            middleware::from_fn_with_state(
+                state,
+                authorization_middleware,
+            ),
+        )
 }
