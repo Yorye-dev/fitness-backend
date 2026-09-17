@@ -1,16 +1,15 @@
-use async_trait::async_trait;
-use sqlx::{Pool, Postgres, Row};
-use uuid::Uuid;
-use chrono::NaiveDate;
+use crate::domain::nutrition::consumption::DailyConsumption;
 use crate::domain::nutrition::goals::NutritionGoals;
 use crate::domain::nutrition::meal::Meal;
-use crate::domain::nutrition::consumption::DailyConsumption;
 use crate::domain::nutrition::repository::{
-    NutritionRepository as NutritionRepositoryTrait, 
-    MealRepository as MealRepositoryTrait,
-    ConsumptionRepository as ConsumptionRepositoryTrait,
-    ConsumptionWithMeal, StatsSummary,
+    ConsumptionRepository as ConsumptionRepositoryTrait, ConsumptionWithMeal,
+    MealRepository as MealRepositoryTrait, NutritionRepository as NutritionRepositoryTrait,
+    StatsSummary,
 };
+use async_trait::async_trait;
+use chrono::NaiveDate;
+use sqlx::{Pool, Postgres, Row};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqlxNutritionRepository {
@@ -28,11 +27,11 @@ impl NutritionRepositoryTrait for SqlxNutritionRepository {
     async fn get_user_goals(&self, user_id: &Uuid) -> Result<Option<NutritionGoals>, sqlx::Error> {
         let goals = sqlx::query_as::<_, NutritionGoals>(
             "SELECT id, user_id, protein_goal, carbs_goal, fats_goal, tdee, bmr
-             FROM users_nutrition_goals WHERE user_id = $1"
+             FROM users_nutrition_goals WHERE user_id = $1",
         )
-            .bind(user_id)
-            .fetch_optional(&self.pool)
-            .await?;
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(goals)
     }
@@ -56,21 +55,24 @@ impl NutritionRepositoryTrait for SqlxNutritionRepository {
         Ok(saved_goals)
     }
 
-    async fn update_user_goals(&self, goals: &NutritionGoals) -> Result<NutritionGoals, sqlx::Error> {
+    async fn update_user_goals(
+        &self,
+        goals: &NutritionGoals,
+    ) -> Result<NutritionGoals, sqlx::Error> {
         let updated_goals = sqlx::query_as::<_, NutritionGoals>(
             "UPDATE users_nutrition_goals 
              SET protein_goal = $1, carbs_goal = $2, fats_goal = $3, tdee = $4, bmr = $5
              WHERE user_id = $6
-             RETURNING id, user_id, protein_goal, carbs_goal, fats_goal, tdee, bmr"
+             RETURNING id, user_id, protein_goal, carbs_goal, fats_goal, tdee, bmr",
         )
-            .bind(&goals.protein_goal)
-            .bind(&goals.carbs_goal)
-            .bind(&goals.fats_goal)
-            .bind(&goals.tdee)
-            .bind(&goals.bmr)
-            .bind(&goals.user_id)
-            .fetch_one(&self.pool)
-            .await?;
+        .bind(&goals.protein_goal)
+        .bind(&goals.carbs_goal)
+        .bind(&goals.fats_goal)
+        .bind(&goals.tdee)
+        .bind(&goals.bmr)
+        .bind(&goals.user_id)
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(updated_goals)
     }
@@ -97,7 +99,11 @@ impl MealRepositoryTrait for SqlxNutritionRepository {
         Ok(saved_meal)
     }
 
-    async fn get_meal_by_id(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<Option<Meal>, sqlx::Error> {
+    async fn get_meal_by_id(
+        &self,
+        meal_id: &Uuid,
+        user_id: &Uuid,
+    ) -> Result<Option<Meal>, sqlx::Error> {
         let meal = sqlx::query_as::<_, Meal>(
             "SELECT id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
              FROM meals WHERE id = $1 AND user_id = $2"
@@ -122,9 +128,14 @@ impl MealRepositoryTrait for SqlxNutritionRepository {
         Ok(meals)
     }
 
-    async fn get_meals_paginated(&self, user_id: &Uuid, page: u32, per_page: u32) -> Result<(Vec<Meal>, i64), sqlx::Error> {
+    async fn get_meals_paginated(
+        &self,
+        user_id: &Uuid,
+        page: u32,
+        per_page: u32,
+    ) -> Result<(Vec<Meal>, i64), sqlx::Error> {
         let _offset = (page - 1) * per_page;
-        
+
         let meals = sqlx::query_as::<_, Meal>(
             "SELECT id, user_id, name, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
              FROM meals WHERE user_id = $1 ORDER BY name LIMIT $2 OFFSET $3"
@@ -156,7 +167,10 @@ impl MealRepositoryTrait for SqlxNutritionRepository {
 
 #[async_trait]
 impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
-    async fn log_consumption(&self, consumption: &DailyConsumption) -> Result<DailyConsumption, sqlx::Error> {
+    async fn log_consumption(
+        &self,
+        consumption: &DailyConsumption,
+    ) -> Result<DailyConsumption, sqlx::Error> {
         let saved = sqlx::query_as::<_, DailyConsumption>(
             "INSERT INTO daily_consumption (id, user_id, date, meal_id, quantity_grams, calories_consumed, protein_consumed, carbs_consumed, fat_consumed)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -177,7 +191,11 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
         Ok(saved)
     }
 
-    async fn get_daily_consumption(&self, user_id: &Uuid, date: &NaiveDate) -> Result<Vec<DailyConsumption>, sqlx::Error> {
+    async fn get_daily_consumption(
+        &self,
+        user_id: &Uuid,
+        date: &NaiveDate,
+    ) -> Result<Vec<DailyConsumption>, sqlx::Error> {
         let consumptions = sqlx::query_as::<_, DailyConsumption>(
             "SELECT id, user_id, date, meal_id, quantity_grams, calories_consumed, protein_consumed, carbs_consumed, fat_consumed
              FROM daily_consumption WHERE user_id = $1 AND date = $2"
@@ -200,12 +218,12 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
     }
 
     async fn get_consumptions_paginated(
-        &self, 
-        user_id: &Uuid, 
-        page: u32, 
-        per_page: u32, 
-        start_date: Option<NaiveDate>, 
-        end_date: Option<NaiveDate>
+        &self,
+        user_id: &Uuid,
+        page: u32,
+        per_page: u32,
+        start_date: Option<NaiveDate>,
+        end_date: Option<NaiveDate>,
     ) -> Result<(Vec<ConsumptionWithMeal>, i64), sqlx::Error> {
         let _offset = (page - 1) * per_page;
 
@@ -218,7 +236,8 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
              WHERE dc.user_id = $1"
         );
 
-        let mut count_query = "SELECT COUNT(*) FROM daily_consumption dc WHERE dc.user_id = $1".to_string();
+        let mut count_query =
+            "SELECT COUNT(*) FROM daily_consumption dc WHERE dc.user_id = $1".to_string();
         let mut param_idx = 2;
 
         if let Some(_start) = start_date {
@@ -232,15 +251,20 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
             param_idx += 1;
         }
 
-        query.push_str(&format!(" ORDER BY dc.date DESC, dc.id LIMIT ${} OFFSET ${}", param_idx, param_idx + 1));
+        query.push_str(&format!(
+            " ORDER BY dc.date DESC, dc.id LIMIT ${} OFFSET ${}",
+            param_idx,
+            param_idx + 1
+        ));
 
         let mut rows = sqlx::query(&query)
             .bind(user_id)
             .fetch_all(&self.pool)
             .await?;
 
-        let consumptions: Vec<ConsumptionWithMeal> = rows.iter_mut().map(|row| {
-            ConsumptionWithMeal {
+        let consumptions: Vec<ConsumptionWithMeal> = rows
+            .iter_mut()
+            .map(|row| ConsumptionWithMeal {
                 consumption: DailyConsumption {
                     id: row.get("id"),
                     user_id: row.get("user_id"),
@@ -257,24 +281,28 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
                 meal_protein: row.get("protein_per_100g"),
                 meal_carbs: row.get("carbs_per_100g"),
                 meal_fat: row.get("fat_per_100g"),
-            }
-        }).collect();
+            })
+            .collect();
 
         let mut count_rows = sqlx::query(&count_query)
             .bind(user_id)
             .fetch_all(&self.pool)
             .await?;
 
-        let total: i64 = count_rows.iter_mut().map(|row| row.get("count")).next().unwrap_or(0);
+        let total: i64 = count_rows
+            .iter_mut()
+            .map(|row| row.get("count"))
+            .next()
+            .unwrap_or(0);
 
         Ok((consumptions, total))
     }
 
     async fn get_consumptions_by_date_range(
-        &self, 
-        user_id: &Uuid, 
-        start_date: &NaiveDate, 
-        end_date: &NaiveDate
+        &self,
+        user_id: &Uuid,
+        start_date: &NaiveDate,
+        end_date: &NaiveDate,
     ) -> Result<Vec<ConsumptionWithMeal>, sqlx::Error> {
         let rows = sqlx::query(
             "SELECT dc.id, dc.user_id, dc.date, dc.meal_id, dc.quantity_grams, 
@@ -291,8 +319,9 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
             .fetch_all(&self.pool)
             .await?;
 
-        let consumptions: Vec<ConsumptionWithMeal> = rows.iter().map(|row| {
-            ConsumptionWithMeal {
+        let consumptions: Vec<ConsumptionWithMeal> = rows
+            .iter()
+            .map(|row| ConsumptionWithMeal {
                 consumption: DailyConsumption {
                     id: row.get("id"),
                     user_id: row.get("user_id"),
@@ -309,17 +338,17 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
                 meal_protein: row.get("protein_per_100g"),
                 meal_carbs: row.get("carbs_per_100g"),
                 meal_fat: row.get("fat_per_100g"),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(consumptions)
     }
 
     async fn get_date_range_stats(
-        &self, 
-        user_id: &Uuid, 
-        start_date: &NaiveDate, 
-        end_date: &NaiveDate
+        &self,
+        user_id: &Uuid,
+        start_date: &NaiveDate,
+        end_date: &NaiveDate,
     ) -> Result<StatsSummary, sqlx::Error> {
         let row = sqlx::query(
             "SELECT 
@@ -329,13 +358,13 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
                 SUM(carbs_consumed) as total_carbs,
                 SUM(fat_consumed) as total_fat
              FROM daily_consumption 
-             WHERE user_id = $1 AND date >= $2 AND date <= $3"
+             WHERE user_id = $1 AND date >= $2 AND date <= $3",
         )
-            .bind(user_id)
-            .bind(start_date)
-            .bind(end_date)
-            .fetch_one(&self.pool)
-            .await?;
+        .bind(user_id)
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_one(&self.pool)
+        .await?;
 
         let total_days: i32 = row.get("total_days");
         let total_calories: f32 = row.get("total_calories");
@@ -346,8 +375,16 @@ impl ConsumptionRepositoryTrait for SqlxNutritionRepository {
         let days = total_days as f32;
         Ok(StatsSummary {
             total_days,
-            avg_calories: if days > 0.0 { total_calories / days } else { 0.0 },
-            avg_protein: if days > 0.0 { total_protein / days } else { 0.0 },
+            avg_calories: if days > 0.0 {
+                total_calories / days
+            } else {
+                0.0
+            },
+            avg_protein: if days > 0.0 {
+                total_protein / days
+            } else {
+                0.0
+            },
             avg_carbs: if days > 0.0 { total_carbs / days } else { 0.0 },
             avg_fat: if days > 0.0 { total_fat / days } else { 0.0 },
             total_calories,

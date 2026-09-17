@@ -1,4 +1,4 @@
-pub mod user;
-pub mod nutrition;
-pub mod errors;
 pub mod enums;
+pub mod errors;
+pub mod nutrition;
+pub mod user;

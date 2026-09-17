@@ -4,10 +4,7 @@ pub mod protected_routes;
 use axum::Router;
 
 use crate::app_state::AppState;
-use crate::presentation::routes::{
-    auth_routes::auth_routes,
-    protected_routes::protected_routes,
-};
+use crate::presentation::routes::{auth_routes::auth_routes, protected_routes::protected_routes};
 
 pub fn app_routes(state: AppState) -> Router {
     Router::new()

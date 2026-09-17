@@ -1,8 +1,8 @@
-use uuid::Uuid;
 use crate::domain::errors::DomainError;
-use crate::domain::nutrition::repository::NutritionRepository;
-use crate::domain::nutrition::goals::NutritionGoals;
 use crate::domain::nutrition::calculator::NutritionCalculator;
+use crate::domain::nutrition::goals::NutritionGoals;
+use crate::domain::nutrition::repository::NutritionRepository;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct UpdateGoalsUseCase<R: NutritionRepository> {
@@ -28,7 +28,9 @@ impl<R: NutritionRepository> UpdateGoalsUseCase<R> {
         let tdee = NutritionCalculator::calculate_tdee(bmr, activity_level.clone());
         let macros = NutritionCalculator::calculate_macros(tdee, goal);
 
-        let existing_goals = self.nutrition_repo.get_user_goals(&user_id)
+        let existing_goals = self
+            .nutrition_repo
+            .get_user_goals(&user_id)
             .await
             .map_err(|e| DomainError::DatabaseError(e))?;
 
@@ -40,25 +42,20 @@ impl<R: NutritionRepository> UpdateGoalsUseCase<R> {
                 macros.fat,
                 macros.carbs,
                 tdee,
-                bmr
+                bmr,
             )
         } else {
-            NutritionGoals::new(
-                user_id,
-                macros.protein,
-                macros.fat,
-                macros.carbs,
-                tdee,
-                bmr
-            )
+            NutritionGoals::new(user_id, macros.protein, macros.fat, macros.carbs, tdee, bmr)
         };
 
         let saved_goals = if existing_goals.is_some() {
-            self.nutrition_repo.update_user_goals(&goals)
+            self.nutrition_repo
+                .update_user_goals(&goals)
                 .await
                 .map_err(|e| DomainError::DatabaseError(e))?
         } else {
-            self.nutrition_repo.save_user_goals(&goals)
+            self.nutrition_repo
+                .save_user_goals(&goals)
                 .await
                 .map_err(|e| DomainError::DatabaseError(e))?
         };

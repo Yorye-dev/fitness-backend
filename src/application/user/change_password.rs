@@ -1,7 +1,7 @@
-use uuid::Uuid;
+use crate::auth;
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use crate::auth;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct ChangePasswordUseCase<R: UserRepository> {
@@ -13,8 +13,15 @@ impl<R: UserRepository> ChangePasswordUseCase<R> {
         Self { user_repo }
     }
 
-    pub async fn execute(&self, user_id: Uuid, current_password: String, new_password: String) -> Result<bool, DomainError> {
-        let user = self.user_repo.get_user_by_id(&user_id)
+    pub async fn execute(
+        &self,
+        user_id: Uuid,
+        current_password: String,
+        new_password: String,
+    ) -> Result<bool, DomainError> {
+        let user = self
+            .user_repo
+            .get_user_by_id(&user_id)
             .await
             .map_err(|e| DomainError::DatabaseError(e))?
             .ok_or(DomainError::UserNotFound)?;
@@ -26,7 +33,9 @@ impl<R: UserRepository> ChangePasswordUseCase<R> {
         let new_hash = crate::shared::password::calculate_hash(&new_password)
             .map_err(|_| DomainError::HashingError)?;
 
-        let updated = self.user_repo.update_password(&user_id, &new_hash)
+        let updated = self
+            .user_repo
+            .update_password(&user_id, &new_hash)
             .await
             .map_err(|e| DomainError::DatabaseError(e))?;
 

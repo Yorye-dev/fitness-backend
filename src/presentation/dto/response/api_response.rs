@@ -18,16 +18,10 @@ pub struct ApiMeta {
 
 impl<T> ApiResponse<T> {
     pub fn new(data: T) -> Self {
-        Self {
-            data,
-            meta: None,
-        }
+        Self { data, meta: None }
     }
 
-    pub fn paginated(
-        data: T,
-        pagination: PaginationMeta,
-    ) -> Self {
+    pub fn paginated(data: T, pagination: PaginationMeta) -> Self {
         Self {
             data,
             meta: Some(ApiMeta {

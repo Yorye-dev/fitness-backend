@@ -1,9 +1,9 @@
-use serde::Serialize;
+use crate::auth;
+use crate::auth::jwt::Jwt;
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use crate::auth::jwt::Jwt;
 use crate::dtos::sign_data_dto::SignInData;
-use crate::auth;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct AuthTokens {
@@ -23,7 +23,8 @@ impl<R: UserRepository> LoginUseCase<R> {
     }
 
     pub async fn execute(&self, dto: SignInData) -> Result<AuthTokens, DomainError> {
-        let user = self.user_repo
+        let user = self
+            .user_repo
             .get_sign_in_user_by_username(&dto.username)
             .await?
             .ok_or(DomainError::UserNotFound)?;
@@ -32,10 +33,14 @@ impl<R: UserRepository> LoginUseCase<R> {
             return Err(DomainError::InvalidCredentials);
         }
 
-        let access_token = self.jwt.generate_access_token(&user.id)
+        let access_token = self
+            .jwt
+            .generate_access_token(&user.id)
             .map_err(|_| DomainError::GenerateTokenError)?;
-        
-        let refresh_token = self.jwt.generate_refresh_token(&user.id)
+
+        let refresh_token = self
+            .jwt
+            .generate_refresh_token(&user.id)
             .map_err(|_| DomainError::GenerateTokenError)?;
 
         Ok(AuthTokens {

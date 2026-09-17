@@ -1,8 +1,8 @@
-use uuid::Uuid;
 use crate::domain::errors::DomainError;
-use crate::domain::nutrition::repository::NutritionRepository;
 use crate::domain::nutrition::goals::NutritionGoals;
+use crate::domain::nutrition::repository::NutritionRepository;
 use crate::dtos::create_user_nutrition_goals_dto::CreateUserNutritionsGoalsDto;
+use uuid::Uuid;
 
 pub struct SetGoalsUseCase<R: NutritionRepository> {
     nutrition_repo: R,
@@ -13,7 +13,11 @@ impl<R: NutritionRepository> SetGoalsUseCase<R> {
         Self { nutrition_repo }
     }
 
-    pub async fn execute(&self, user_id: Uuid, dto: CreateUserNutritionsGoalsDto) -> Result<NutritionGoals, DomainError> {
+    pub async fn execute(
+        &self,
+        user_id: Uuid,
+        dto: CreateUserNutritionsGoalsDto,
+    ) -> Result<NutritionGoals, DomainError> {
         let goals = NutritionGoals::new(
             user_id,
             dto.protein_goal,

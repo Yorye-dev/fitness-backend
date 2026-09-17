@@ -1,13 +1,8 @@
-use axum::{
-    routing::post,
-    Router,
-};
+use axum::{Router, routing::post};
 
 use crate::app_state::AppState;
 use crate::presentation::handlers::auth_handler::{
-    refresh_token_handler,
-    register_handler,
-    sign_in_handler,
+    refresh_token_handler, register_handler, sign_in_handler,
 };
 
 pub fn auth_routes() -> Router<AppState> {

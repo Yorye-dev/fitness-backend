@@ -12,10 +12,7 @@ pub struct ApiErrorDetail {
 }
 
 impl ApiErrorResponse {
-    pub fn new(
-        code: &'static str,
-        message: impl Into<String>,
-    ) -> Self {
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             error: ApiErrorDetail {
                 code,

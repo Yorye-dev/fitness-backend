@@ -1,8 +1,8 @@
+use crate::domain::user::repository::UserRepository as UserRepositoryTrait;
+use crate::domain::user::user::{SignInUser, User};
 use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
-use crate::domain::user::user::{User, SignInUser};
-use crate::domain::user::repository::UserRepository as UserRepositoryTrait;
 
 #[derive(Clone)]
 pub struct SqlxUserRepository {
@@ -41,11 +41,11 @@ impl UserRepositoryTrait for SqlxUserRepository {
     async fn get_user_by_id(&self, user_id: &Uuid) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query_as::<_, User>(
             "SELECT id, username, password_hash, age, sex, height, weight, activity_level, goal
-             FROM users WHERE id = $1"
+             FROM users WHERE id = $1",
         )
-            .bind(user_id)
-            .fetch_optional(&self.pool)
-            .await?;
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user)
     }
@@ -53,22 +53,25 @@ impl UserRepositoryTrait for SqlxUserRepository {
     async fn get_user_by_username(&self, username: &String) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query_as::<_, User>(
             "SELECT id, username, password_hash, age, sex, height, weight, activity_level, goal
-             FROM users WHERE username = $1"
+             FROM users WHERE username = $1",
         )
-            .bind(username)
-            .fetch_optional(&self.pool)
-            .await?;
+        .bind(username)
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user)
     }
 
-    async fn get_sign_in_user_by_username(&self, username: &String) -> Result<Option<SignInUser>, sqlx::Error> {
+    async fn get_sign_in_user_by_username(
+        &self,
+        username: &String,
+    ) -> Result<Option<SignInUser>, sqlx::Error> {
         let user = sqlx::query_as::<_, SignInUser>(
-            "SELECT id, username, password_hash FROM users WHERE username = $1"
+            "SELECT id, username, password_hash FROM users WHERE username = $1",
         )
-            .bind(username)
-            .fetch_optional(&self.pool)
-            .await?;
+        .bind(username)
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user)
     }
@@ -84,10 +87,12 @@ impl UserRepositoryTrait for SqlxUserRepository {
         Ok(result.exists.unwrap_or(false))
     }
 
-    async fn update_password(&self, user_id: &Uuid, new_password_hash: &str) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query(
-            "UPDATE users SET password_hash = $1 WHERE id = $2"
-        )
+    async fn update_password(
+        &self,
+        user_id: &Uuid,
+        new_password_hash: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
             .bind(new_password_hash)
             .bind(user_id)
             .execute(&self.pool)
@@ -100,16 +105,16 @@ impl UserRepositoryTrait for SqlxUserRepository {
         let updated_user = sqlx::query_as::<_, User>(
             "UPDATE users SET weight = $1, height = $2, age = $3, activity_level = $4, goal = $5
              WHERE id = $6
-             RETURNING id, username, password_hash, age, sex, height, weight, activity_level, goal"
+             RETURNING id, username, password_hash, age, sex, height, weight, activity_level, goal",
         )
-            .bind(user.weight)
-            .bind(user.height)
-            .bind(user.age)
-            .bind(&user.activity_level)
-            .bind(&user.goal)
-            .bind(&user.id)
-            .fetch_one(&self.pool)
-            .await?;
+        .bind(user.weight)
+        .bind(user.height)
+        .bind(user.age)
+        .bind(&user.activity_level)
+        .bind(&user.goal)
+        .bind(&user.id)
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(updated_user)
     }

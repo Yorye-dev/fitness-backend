@@ -10,9 +10,7 @@ pub async fn init_db_pg_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx:
         .connect(database_url)
         .await?;
 
-    sqlx::query("SELECT 1")
-        .execute(&pool)
-        .await?;
+    sqlx::query("SELECT 1").execute(&pool).await?;
 
     println!("Se pudo conectar con la database");
 
