@@ -1,13 +1,26 @@
 use crate::application::auth::login::AuthTokens;
 use crate::auth::jwt::Jwt;
+use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
 use crate::domain::errors::DomainError;
 use crate::domain::nutrition::calculator::NutritionCalculator;
 use crate::domain::nutrition::goals::NutritionGoals;
 use crate::domain::nutrition::repository::NutritionRepository;
-use crate::domain::user::factory::UserFactory;
+use crate::domain::user::factory::{NewUserData, UserFactory};
 use crate::domain::user::repository::UserRepository;
 use crate::domain::user::user::User;
-use crate::dtos::register_user_dto::RegisterUserDto;
+use crate::shared::password::calculate_hash;
+
+#[derive(Debug)]
+pub struct RegisterUserInput {
+    pub username: String,
+    pub plain_password: String,
+    pub sex: Sex,
+    pub weight: f32,
+    pub height: i32,
+    pub age: i32,
+    pub activity_level: ActivityLevel,
+    pub goal: Goal,
+}
 
 #[derive(Clone)]
 pub struct RegisterUserUseCase<R: UserRepository, N: NutritionRepository> {
@@ -25,9 +38,20 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         }
     }
 
-    pub async fn execute(&self, dto: RegisterUserDto) -> Result<AuthTokens, DomainError> {
-        let user =
-            UserFactory::create_user_from_dto(dto).map_err(|e| DomainError::ValidationError(e))?;
+    pub async fn execute(&self, input: RegisterUserInput) -> Result<AuthTokens, DomainError> {
+        let password_hash =
+            calculate_hash(&input.plain_password).map_err(|_| DomainError::HashingError)?;
+
+        let user = UserFactory::create_user(NewUserData {
+            username: input.username,
+            password_hash,
+            sex: input.sex,
+            weight: input.weight,
+            height: input.height,
+            age: input.age,
+            activity_level: input.activity_level,
+            goal: input.goal,
+        });
 
         let goals = Self::generate_user_goals(&user);
 
@@ -57,7 +81,9 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
             user.age as u32,
             user.sex.clone(),
         );
+
         let tdee = NutritionCalculator::calculate_tdee(bmr, user.activity_level.clone());
+
         let macros = NutritionCalculator::calculate_macros(tdee, user.goal.clone());
 
         NutritionGoals::new(user.id, macros.protein, macros.fat, macros.carbs, tdee, bmr)

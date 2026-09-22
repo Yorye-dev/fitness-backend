@@ -1,9 +1,15 @@
+use serde::Serialize;
+
 use crate::auth;
 use crate::auth::jwt::Jwt;
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use crate::dtos::sign_data_dto::SignInData;
-use serde::Serialize;
+
+#[derive(Debug)]
+pub struct LoginInput {
+    pub username: String,
+    pub password: String,
+}
 
 #[derive(Serialize)]
 pub struct AuthTokens {
@@ -22,14 +28,14 @@ impl<R: UserRepository> LoginUseCase<R> {
         Self { user_repo, jwt }
     }
 
-    pub async fn execute(&self, dto: SignInData) -> Result<AuthTokens, DomainError> {
+    pub async fn execute(&self, input: LoginInput) -> Result<AuthTokens, DomainError> {
         let user = self
             .user_repo
-            .get_sign_in_user_by_username(&dto.username)
+            .get_sign_in_user_by_username(&input.username)
             .await?
             .ok_or(DomainError::UserNotFound)?;
 
-        if !auth::utils::verify_password(&dto.password, &user.password_hash) {
+        if !auth::utils::verify_password(&input.password, &user.password_hash) {
             return Err(DomainError::InvalidCredentials);
         }
 

@@ -1,12 +1,14 @@
 use serde::Deserialize;
 
-#[derive(Deserialize)]
-pub struct SignInData {
+use crate::application::auth::login::LoginInput;
+
+#[derive(Debug, Deserialize)]
+pub struct SignInRequest {
     pub username: String,
     pub password: String,
 }
 
-impl SignInData {
+impl SignInRequest {
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
@@ -22,6 +24,15 @@ impl SignInData {
             Ok(())
         } else {
             Err(errors)
+        }
+    }
+}
+
+impl From<SignInRequest> for LoginInput {
+    fn from(request: SignInRequest) -> Self {
+        Self {
+            username: request.username,
+            password: request.password,
         }
     }
 }
