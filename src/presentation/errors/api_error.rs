@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+use crate::domain::errors::DomainError;
 use crate::presentation::dto::response::api_error::ApiErrorResponse;
 
 #[derive(Debug)]
@@ -100,5 +101,31 @@ impl IntoResponse for ApiError {
         let body = ApiErrorResponse::new(self.code(), self.message());
 
         (status, Json(body)).into_response()
+    }
+}
+
+impl From<DomainError> for ApiError {
+    fn from(error: DomainError) -> Self {
+        match error {
+            DomainError::UserNotFound => Self::UserNotFound,
+
+            DomainError::InvalidCredentials => Self::InvalidCredentials,
+
+            DomainError::Unauthorized => Self::Unauthorized,
+
+            DomainError::ValidationError(message) => Self::Validation(message),
+
+            DomainError::MissingToken => Self::Unauthorized,
+
+            DomainError::InvalidHeader => {
+                Self::BadRequest("Invalid authorization header".to_string())
+            }
+
+            DomainError::InvalidToken => Self::InvalidToken,
+
+            DomainError::DatabaseError(_)
+            | DomainError::HashingError
+            | DomainError::GenerateTokenError => Self::Internal,
+        }
     }
 }

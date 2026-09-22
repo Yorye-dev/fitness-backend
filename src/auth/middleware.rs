@@ -1,46 +1,54 @@
-use crate::app_state::AppState;
-use crate::domain::errors::DomainError;
 use axum::{
     body::Body,
     extract::State,
-    http::{Request, StatusCode},
+    http::{Request, header::AUTHORIZATION},
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
 };
+
+use crate::app_state::AppState;
+use crate::domain::errors::DomainError;
+use crate::presentation::errors::api_error::ApiError;
 
 pub async fn authorization_middleware(
     State(state): State<AppState>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    let auth_header = req
-        .headers()
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok());
-
-    let token = match auth_header.and_then(|v| v.strip_prefix("Bearer ")) {
-        Some(t) => t,
+    let auth_header = match req.headers().get(AUTHORIZATION) {
+        Some(header) => header,
         None => {
-            return Response::builder()
-                .status(StatusCode::FORBIDDEN)
-                .body(Body::from("Missing or invalid Authorization header"))
-                .unwrap();
+            return ApiError::Unauthorized.into_response();
+        }
+    };
+
+    let auth_header = match auth_header.to_str() {
+        Ok(header) => header,
+        Err(_) => {
+            return ApiError::BadRequest("Invalid authorization header".to_string())
+                .into_response();
+        }
+    };
+
+    let token = match auth_header.strip_prefix("Bearer ") {
+        Some(token) if !token.is_empty() => token,
+        _ => {
+            return ApiError::BadRequest("Invalid authorization header".to_string())
+                .into_response();
         }
     };
 
     let claims = match state.verify_token_use_case.execute(token.to_string()).await {
-        Ok(c) => c,
-        Err(e) => {
-            let (status, message) = match e {
-                DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
-                DomainError::UserNotFound => (StatusCode::NOT_FOUND, "User not found"),
-                DomainError::MissingToken => (StatusCode::UNAUTHORIZED, "Missing token"),
-                _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+        Ok(claims) => claims,
+
+        Err(error) => {
+            let api_error = match error {
+                DomainError::InvalidToken | DomainError::UserNotFound => ApiError::InvalidToken,
+
+                error => ApiError::from(error),
             };
-            return Response::builder()
-                .status(status)
-                .body(Body::from(message))
-                .unwrap();
+
+            return api_error.into_response();
         }
     };
 
