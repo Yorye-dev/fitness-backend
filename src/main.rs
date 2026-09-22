@@ -10,7 +10,6 @@ pub mod application;
 pub mod auth;
 pub mod config;
 pub mod domain;
-pub mod dtos;
 pub mod infrastructure;
 pub mod presentation;
 pub mod shared;
