@@ -5,6 +5,7 @@ use axum::{
 use serde::Deserialize;
 
 use crate::app_state::AppState;
+use crate::domain::errors::DomainError;
 use crate::dtos::register_user_dto::RegisterUserDto;
 use crate::dtos::sign_data_dto::SignInData;
 use crate::presentation::errors::api_error::ApiError;
@@ -27,7 +28,12 @@ pub async fn sign_in_handler(
         .login_use_case
         .execute(sign_in_dto)
         .await
-        .map_err(|_| ApiError::InvalidCredentials)?;
+        .map_err(|error| match error {
+            DomainError::UserNotFound | DomainError::InvalidCredentials => {
+                ApiError::InvalidCredentials
+            }
+            error => ApiError::from(error),
+        })?;
 
     Ok(ResponseFactory::ok(tokens))
 }
@@ -44,7 +50,7 @@ pub async fn register_handler(
         .register_user_use_case
         .execute(register_user_dto)
         .await
-        .map_err(|error| ApiError::BadRequest(error.to_string()))?;
+        .map_err(ApiError::from)?;
 
     Ok(ResponseFactory::created(tokens))
 }
@@ -57,7 +63,10 @@ pub async fn refresh_token_handler(
         .refresh_token_use_case
         .execute(refresh_dto.refresh_token)
         .await
-        .map_err(|_| ApiError::InvalidToken)?;
+        .map_err(|error| match error {
+            DomainError::InvalidToken | DomainError::UserNotFound => ApiError::InvalidToken,
+            error => ApiError::from(error),
+        })?;
 
     Ok(ResponseFactory::ok(serde_json::json!({
         "access_token": access_token
