@@ -1,62 +1,65 @@
-use crate::app_state::AppState;
-use crate::dtos::register_user_dto::RegisterUserDto;
-use crate::dtos::sign_data_dto::SignInData;
-use crate::presentation::factories::api_response_factory::ResponseFactory;
 use axum::{
     extract::{Json, State},
-    response::IntoResponse,
+    response::Response,
 };
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+use crate::app_state::AppState;
+use crate::dtos::register_user_dto::RegisterUserDto;
+use crate::dtos::sign_data_dto::SignInData;
+use crate::presentation::errors::api_error::ApiError;
+use crate::presentation::factories::response_factory::ResponseFactory;
+
+#[derive(Debug, Deserialize)]
 pub struct RefreshTokenDto {
     pub refresh_token: String,
 }
 
 pub async fn sign_in_handler(
     State(state): State<AppState>,
-    Json(sing_in_dto): Json<SignInData>,
-) -> impl IntoResponse {
-    if let Err(errors) = sing_in_dto.validate() {
-        return ResponseFactory::bad_request(&errors.join(", "));
+    Json(sign_in_dto): Json<SignInData>,
+) -> Result<Response, ApiError> {
+    if let Err(errors) = sign_in_dto.validate() {
+        return Err(ApiError::Validation(errors.join(", ")));
     }
 
-    match state.login_use_case.execute(sing_in_dto).await {
-        Ok(tokens) => ResponseFactory::ok(tokens),
-        Err(e) => ResponseFactory::unauthorized(&e.to_string()),
-    }
+    let tokens = state
+        .login_use_case
+        .execute(sign_in_dto)
+        .await
+        .map_err(|_| ApiError::InvalidCredentials)?;
+
+    Ok(ResponseFactory::ok(tokens))
 }
 
 pub async fn register_handler(
     State(state): State<AppState>,
     Json(register_user_dto): Json<RegisterUserDto>,
-) -> impl IntoResponse {
+) -> Result<Response, ApiError> {
     if let Err(errors) = register_user_dto.validate() {
-        return ResponseFactory::bad_request(&errors.join(", "));
+        return Err(ApiError::Validation(errors.join(", ")));
     }
 
-    match state
+    let tokens = state
         .register_user_use_case
         .execute(register_user_dto)
         .await
-    {
-        Ok(tokens) => ResponseFactory::ok(tokens),
-        Err(e) => ResponseFactory::bad_request(&e.to_string()),
-    }
+        .map_err(|error| ApiError::BadRequest(error.to_string()))?;
+
+    Ok(ResponseFactory::created(tokens))
 }
 
 pub async fn refresh_token_handler(
     State(state): State<AppState>,
     Json(refresh_dto): Json<RefreshTokenDto>,
-) -> impl IntoResponse {
-    match state
+) -> Result<Response, ApiError> {
+    let access_token = state
         .refresh_token_use_case
         .execute(refresh_dto.refresh_token)
         .await
-    {
-        Ok(access_token) => {
-            ResponseFactory::ok(serde_json::json!({ "access_token": access_token }))
-        }
-        Err(e) => ResponseFactory::unauthorized(&e.to_string()),
-    }
+        .map_err(|_| ApiError::InvalidToken)?;
+
+    Ok(ResponseFactory::ok(serde_json::json!({
+        "access_token": access_token
+    })))
 }
