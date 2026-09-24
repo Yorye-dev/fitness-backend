@@ -1,8 +1,8 @@
-use axum::{Router, middleware, routing::get};
+use axum::{middleware, routing::get, Router};
 
 use crate::app_state::AppState;
-use crate::auth::middleware::authorization_middleware;
 use crate::presentation::handlers::user_handler::me_handler;
+use crate::presentation::middleware::auth::authorization_middleware;
 
 pub fn protected_routes(state: AppState) -> Router<AppState> {
     Router::new()

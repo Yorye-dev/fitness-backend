@@ -1,6 +1,9 @@
 use crate::application::auth::login::AuthTokens;
-use crate::auth::jwt::Jwt;
-use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
+use crate::domain::enums::{
+    activity_level::ActivityLevel,
+    goals::Goal,
+    sex::Sex,
+};
 use crate::domain::errors::DomainError;
 use crate::domain::nutrition::calculator::NutritionCalculator;
 use crate::domain::nutrition::goals::NutritionGoals;
@@ -8,7 +11,8 @@ use crate::domain::nutrition::repository::NutritionRepository;
 use crate::domain::user::factory::{NewUserData, UserFactory};
 use crate::domain::user::repository::UserRepository;
 use crate::domain::user::user::User;
-use crate::shared::password::calculate_hash;
+use crate::infrastructure::auth::jwt::Jwt;
+use crate::infrastructure::security::password::calculate_hash;
 
 #[derive(Debug)]
 pub struct RegisterUserInput {
@@ -30,7 +34,11 @@ pub struct RegisterUserUseCase<R: UserRepository, N: NutritionRepository> {
 }
 
 impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
-    pub fn new(user_repo: R, nutrition_repo: N, jwt: Jwt) -> Self {
+    pub fn new(
+        user_repo: R,
+        nutrition_repo: N,
+        jwt: Jwt,
+    ) -> Self {
         Self {
             user_repo,
             nutrition_repo,
@@ -38,9 +46,13 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         }
     }
 
-    pub async fn execute(&self, input: RegisterUserInput) -> Result<AuthTokens, DomainError> {
+    pub async fn execute(
+        &self,
+        input: RegisterUserInput,
+    ) -> Result<AuthTokens, DomainError> {
         let password_hash =
-            calculate_hash(&input.plain_password).map_err(|_| DomainError::HashingError)?;
+            calculate_hash(&input.plain_password)
+                .map_err(|_| DomainError::HashingError)?;
 
         let user = UserFactory::create_user(NewUserData {
             username: input.username,
@@ -56,7 +68,9 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         let goals = Self::generate_user_goals(&user);
 
         self.user_repo.save_user(&user).await?;
-        self.nutrition_repo.save_user_goals(&goals).await?;
+        self.nutrition_repo
+            .save_user_goals(&goals)
+            .await?;
 
         let access_token = self
             .jwt
@@ -74,7 +88,9 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
         })
     }
 
-    fn generate_user_goals(user: &User) -> NutritionGoals {
+    fn generate_user_goals(
+        user: &User,
+    ) -> NutritionGoals {
         let bmr = NutritionCalculator::calculate_bmr(
             user.weight,
             user.height as f32,
@@ -82,10 +98,23 @@ impl<R: UserRepository, N: NutritionRepository> RegisterUserUseCase<R, N> {
             user.sex.clone(),
         );
 
-        let tdee = NutritionCalculator::calculate_tdee(bmr, user.activity_level.clone());
+        let tdee = NutritionCalculator::calculate_tdee(
+            bmr,
+            user.activity_level.clone(),
+        );
 
-        let macros = NutritionCalculator::calculate_macros(tdee, user.goal.clone());
+        let macros = NutritionCalculator::calculate_macros(
+            tdee,
+            user.goal.clone(),
+        );
 
-        NutritionGoals::new(user.id, macros.protein, macros.fat, macros.carbs, tdee, bmr)
+        NutritionGoals::new(
+            user.id,
+            macros.protein,
+            macros.fat,
+            macros.carbs,
+            tdee,
+            bmr,
+        )
     }
 }

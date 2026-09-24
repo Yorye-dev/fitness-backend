@@ -1,7 +1,7 @@
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use uuid::Uuid;
 
-use crate::auth::claims::Claims;
+use crate::infrastructure::auth::claims::Claims;
 
 #[derive(Clone)]
 pub struct Jwt {
@@ -19,6 +19,7 @@ impl Jwt {
         expiration_minutes: i64,
     ) -> Result<String, jsonwebtoken::errors::Error> {
         let claims = Claims::new(&user_id.to_string(), expiration_minutes);
+
         encode(
             &Header::default(),
             &claims,
@@ -40,12 +41,16 @@ impl Jwt {
         self.generate_token(user_id, 10080)
     }
 
-    pub fn decode_token(&self, token: &String) -> Result<Claims, jsonwebtoken::errors::Error> {
+    pub fn decode_token(
+        &self,
+        token: &String,
+    ) -> Result<Claims, jsonwebtoken::errors::Error> {
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret_key.as_bytes()),
             &Validation::default(),
         )?;
+
         Ok(token_data.claims)
     }
 }

@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::State,
-    http::{Request, header::AUTHORIZATION},
+    http::{header::AUTHORIZATION, Request},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -27,25 +27,35 @@ pub async fn authorization_middleware(
     let auth_header = match auth_header.to_str() {
         Ok(header) => header,
         Err(_) => {
-            return ApiError::BadRequest("Invalid authorization header".to_string())
-                .into_response();
+            return ApiError::BadRequest(
+                "Invalid authorization header".to_string(),
+            )
+            .into_response();
         }
     };
 
     let token = match auth_header.strip_prefix("Bearer ") {
         Some(token) if !token.is_empty() => token,
         _ => {
-            return ApiError::BadRequest("Invalid authorization header".to_string())
-                .into_response();
+            return ApiError::BadRequest(
+                "Invalid authorization header".to_string(),
+            )
+            .into_response();
         }
     };
 
-    let claims = match state.verify_token_use_case.execute(token.to_string()).await {
+    let claims = match state
+        .verify_token_use_case
+        .execute(token.to_string())
+        .await
+    {
         Ok(claims) => claims,
 
         Err(error) => {
             let api_error = match error {
-                DomainError::InvalidToken | DomainError::UserNotFound => ApiError::InvalidToken,
+                DomainError::InvalidToken | DomainError::UserNotFound => {
+                    ApiError::InvalidToken
+                }
 
                 error => ApiError::from(error),
             };
@@ -61,7 +71,8 @@ pub async fn authorization_middleware(
         }
     };
 
-    req.extensions_mut().insert(AuthenticatedUser { user_id });
+    req.extensions_mut()
+        .insert(AuthenticatedUser { user_id });
 
     next.run(req).await
 }
