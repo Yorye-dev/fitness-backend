@@ -5,9 +5,11 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use uuid::Uuid;
 
 use crate::app_state::AppState;
 use crate::domain::errors::DomainError;
+use crate::presentation::authenticated_user::AuthenticatedUser;
 use crate::presentation::errors::api_error::ApiError;
 
 pub async fn authorization_middleware(
@@ -52,7 +54,14 @@ pub async fn authorization_middleware(
         }
     };
 
-    req.extensions_mut().insert(claims);
+    let user_id = match Uuid::parse_str(&claims.subject) {
+        Ok(user_id) => user_id,
+        Err(_) => {
+            return ApiError::InvalidToken.into_response();
+        }
+    };
+
+    req.extensions_mut().insert(AuthenticatedUser { user_id });
 
     next.run(req).await
 }
