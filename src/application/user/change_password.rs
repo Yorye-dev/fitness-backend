@@ -1,7 +1,11 @@
-use crate::auth;
+use uuid::Uuid;
+
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use uuid::Uuid;
+use crate::infrastructure::security::password::{
+    calculate_hash,
+    verify_password,
+};
 
 #[derive(Clone)]
 pub struct ChangePasswordUseCase<R: UserRepository> {
@@ -26,12 +30,16 @@ impl<R: UserRepository> ChangePasswordUseCase<R> {
             .map_err(|e| DomainError::DatabaseError(e))?
             .ok_or(DomainError::UserNotFound)?;
 
-        if !auth::utils::verify_password(&current_password, &user.password_hash) {
+        if !verify_password(
+            &current_password,
+            &user.password_hash,
+        ) {
             return Err(DomainError::InvalidCredentials);
         }
 
-        let new_hash = crate::shared::password::calculate_hash(&new_password)
-            .map_err(|_| DomainError::HashingError)?;
+        let new_hash =
+            calculate_hash(&new_password)
+                .map_err(|_| DomainError::HashingError)?;
 
         let updated = self
             .user_repo

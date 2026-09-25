@@ -1,8 +1,9 @@
-use crate::auth::claims::Claims;
-use crate::auth::jwt::Jwt;
+use uuid::Uuid;
+
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use uuid::Uuid;
+use crate::infrastructure::auth::claims::Claims;
+use crate::infrastructure::auth::jwt::Jwt;
 
 #[derive(Clone)]
 pub struct VerifyTokenUseCase<R: UserRepository> {
@@ -15,7 +16,10 @@ impl<R: UserRepository> VerifyTokenUseCase<R> {
         Self { user_repo, jwt }
     }
 
-    pub async fn execute(&self, token: String) -> Result<Claims, DomainError> {
+    pub async fn execute(
+        &self,
+        token: String,
+    ) -> Result<Claims, DomainError> {
         let claims = self
             .jwt
             .decode_token(&token)
@@ -23,7 +27,9 @@ impl<R: UserRepository> VerifyTokenUseCase<R> {
 
         let user_id = claims.subject.clone();
 
-        let user_uuid = Uuid::parse_str(&user_id).map_err(|_| DomainError::InvalidToken)?;
+        let user_uuid =
+            Uuid::parse_str(&user_id)
+                .map_err(|_| DomainError::InvalidToken)?;
 
         let exists = self
             .user_repo

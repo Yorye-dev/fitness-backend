@@ -8,57 +8,98 @@ use crate::application::user::get_current_user::GetCurrentUserUseCase;
 use crate::application::user::register_user::RegisterUserUseCase;
 use crate::application::user::update_goals::UpdateGoalsUseCase;
 use crate::application::user::update_user::UpdateUserUseCase;
-
-use crate::auth::jwt::Jwt;
-
+use crate::infrastructure::auth::jwt::Jwt;
 use crate::infrastructure::persistence::repositories::{
-    SqlxNutritionRepository, SqlxUserRepository,
+    SqlxNutritionRepository,
+    SqlxUserRepository,
 };
 
 #[derive(Clone)]
 pub struct AppState {
-    pub register_user_use_case: RegisterUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
+    pub register_user_use_case:
+        RegisterUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
 
-    pub login_use_case: LoginUseCase<SqlxUserRepository>,
+    pub login_use_case:
+        LoginUseCase<SqlxUserRepository>,
 
-    pub verify_token_use_case: VerifyTokenUseCase<SqlxUserRepository>,
+    pub verify_token_use_case:
+        VerifyTokenUseCase<SqlxUserRepository>,
 
-    pub refresh_token_use_case: RefreshTokenUseCase<SqlxUserRepository>,
+    pub refresh_token_use_case:
+        RefreshTokenUseCase<SqlxUserRepository>,
 
-    pub change_password_use_case: ChangePasswordUseCase<SqlxUserRepository>,
+    pub change_password_use_case:
+        ChangePasswordUseCase<SqlxUserRepository>,
 
-    pub update_goals_use_case: UpdateGoalsUseCase<SqlxNutritionRepository>,
+    pub update_goals_use_case:
+        UpdateGoalsUseCase<SqlxNutritionRepository>,
 
-    pub update_user_use_case: UpdateUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
+    pub update_user_use_case:
+        UpdateUserUseCase<SqlxUserRepository, SqlxNutritionRepository>,
 
-    pub get_current_user_use_case: GetCurrentUserUseCase<SqlxUserRepository>,
+    pub get_current_user_use_case:
+        GetCurrentUserUseCase<SqlxUserRepository>,
 }
 
 impl AppState {
-    pub fn new(pool: PgPool, secret_key: String) -> Self {
+    pub fn new(
+        pool: PgPool,
+        secret_key: String,
+    ) -> Self {
         let jwt = Jwt::new(secret_key);
 
-        let user_repository = SqlxUserRepository::new(pool.clone());
+        let user_repository =
+            SqlxUserRepository::new(pool.clone());
 
-        let nutrition_repository = SqlxNutritionRepository::new(pool);
+        let nutrition_repository =
+            SqlxNutritionRepository::new(pool);
 
         Self {
-            register_user_use_case: RegisterUserUseCase::new(
-                user_repository.clone(),
-                nutrition_repository.clone(),
-                jwt.clone(),
-            ),
+            register_user_use_case:
+                RegisterUserUseCase::new(
+                    user_repository.clone(),
+                    nutrition_repository.clone(),
+                    jwt.clone(),
+                ),
 
-            login_use_case: LoginUseCase::new(user_repository.clone(), jwt.clone()),
+            login_use_case:
+                LoginUseCase::new(
+                    user_repository.clone(),
+                    jwt.clone(),
+                ),
 
-            verify_token_use_case: VerifyTokenUseCase::new(user_repository.clone(), jwt.clone()),
+            verify_token_use_case:
+                VerifyTokenUseCase::new(
+                    user_repository.clone(),
+                    jwt.clone(),
+                ),
 
-            refresh_token_use_case: RefreshTokenUseCase::new(user_repository.clone(), jwt),
-            get_current_user_use_case: GetCurrentUserUseCase::new(user_repository.clone()),
-            change_password_use_case: ChangePasswordUseCase::new(user_repository.clone()),
-            update_goals_use_case: UpdateGoalsUseCase::new(nutrition_repository.clone()),
+            refresh_token_use_case:
+                RefreshTokenUseCase::new(
+                    user_repository.clone(),
+                    jwt,
+                ),
 
-            update_user_use_case: UpdateUserUseCase::new(user_repository, nutrition_repository),
+            get_current_user_use_case:
+                GetCurrentUserUseCase::new(
+                    user_repository.clone(),
+                ),
+
+            change_password_use_case:
+                ChangePasswordUseCase::new(
+                    user_repository.clone(),
+                ),
+
+            update_goals_use_case:
+                UpdateGoalsUseCase::new(
+                    nutrition_repository.clone(),
+                ),
+
+            update_user_use_case:
+                UpdateUserUseCase::new(
+                    user_repository,
+                    nutrition_repository,
+                ),
         }
     }
 }

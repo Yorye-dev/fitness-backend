@@ -1,7 +1,8 @@
-use crate::auth::jwt::Jwt;
+use uuid::Uuid;
+
 use crate::domain::errors::DomainError;
 use crate::domain::user::repository::UserRepository;
-use uuid::Uuid;
+use crate::infrastructure::auth::jwt::Jwt;
 
 #[derive(Clone)]
 pub struct RefreshTokenUseCase<R: UserRepository> {
@@ -14,7 +15,10 @@ impl<R: UserRepository> RefreshTokenUseCase<R> {
         Self { user_repo, jwt }
     }
 
-    pub async fn execute(&self, refresh_token: String) -> Result<String, DomainError> {
+    pub async fn execute(
+        &self,
+        refresh_token: String,
+    ) -> Result<String, DomainError> {
         let claims = self
             .jwt
             .decode_token(&refresh_token)
@@ -22,7 +26,9 @@ impl<R: UserRepository> RefreshTokenUseCase<R> {
 
         let user_id = claims.subject.clone();
 
-        let user_uuid = Uuid::parse_str(&user_id).map_err(|_| DomainError::InvalidToken)?;
+        let user_uuid =
+            Uuid::parse_str(&user_id)
+                .map_err(|_| DomainError::InvalidToken)?;
 
         let exists = self
             .user_repo
