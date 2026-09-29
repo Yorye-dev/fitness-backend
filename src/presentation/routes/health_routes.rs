@@ -1,21 +1,17 @@
+use crate::application::health::ReadinessCheck;
 use axum::{Router, extract::State, http::StatusCode, routing::get};
-use sqlx::PgPool;
-use std::time::Duration;
+use std::sync::Arc;
 
-pub fn health_routes(pool: PgPool) -> Router {
+pub fn health_routes(check: Arc<dyn ReadinessCheck>) -> Router {
     Router::new()
         .route("/health/ready", get(ready))
-        .with_state(pool)
+        .with_state(check)
 }
 
-async fn ready(State(pool): State<PgPool>) -> StatusCode {
-    match tokio::time::timeout(
-        Duration::from_secs(2),
-        sqlx::query("SELECT 1").execute(&pool),
-    )
-    .await
-    {
-        Ok(Ok(_)) => StatusCode::NO_CONTENT,
-        _ => StatusCode::SERVICE_UNAVAILABLE,
+async fn ready(State(check): State<Arc<dyn ReadinessCheck>>) -> StatusCode {
+    if check.is_ready().await {
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
     }
 }

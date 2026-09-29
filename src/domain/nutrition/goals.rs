@@ -1,8 +1,6 @@
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, FromRow, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct NutritionGoals {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -24,26 +22,6 @@ impl NutritionGoals {
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
-            user_id,
-            protein_goal,
-            fats_goal,
-            carbs_goal,
-            tdee,
-            bmr,
-        }
-    }
-
-    pub fn from_db(
-        id: Uuid,
-        user_id: Uuid,
-        protein_goal: f32,
-        fats_goal: f32,
-        carbs_goal: f32,
-        tdee: f32,
-        bmr: f32,
-    ) -> Self {
-        Self {
-            id,
             user_id,
             protein_goal,
             fats_goal,

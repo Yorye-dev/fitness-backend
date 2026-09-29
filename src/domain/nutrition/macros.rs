@@ -1,6 +1,4 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Macros {
     pub protein: f32,
     pub fat: f32,

@@ -2,33 +2,27 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DomainError {
-    #[error("database error: {0}")]
-    DatabaseError(#[from] sqlx::Error),
-
     #[error("user not found")]
     UserNotFound,
-
+    #[error("meal not found")]
+    MealNotFound,
+    #[error("nutrition goals not found")]
+    NutritionGoalsNotFound,
     #[error("invalid credentials")]
     InvalidCredentials,
+    #[error("{0}")]
+    Validation(String),
+}
 
-    #[error("password hashing error")]
-    HashingError,
-
-    #[error("generate token error")]
-    GenerateTokenError,
-
-    #[error("unauthorized token")]
-    Unauthorized,
-
-    #[error("validation error: {0}")]
-    ValidationError(String),
-
-    #[error("missing authorization token")]
-    MissingToken,
-
-    #[error("invalid authorization header")]
-    InvalidHeader,
-
-    #[error("invalid or expired token")]
-    InvalidToken,
+/// Storage failures independent of the database driver.
+#[derive(Debug, Error)]
+pub enum RepositoryError {
+    #[error("resource already exists or is still referenced")]
+    Conflict,
+    #[error("resource not found")]
+    NotFound,
+    #[error("storage unavailable")]
+    Unavailable,
+    #[error("unexpected storage error")]
+    Unexpected,
 }

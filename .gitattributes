@@ -2,3 +2,6 @@
 # Keep SQLx checksums identical on Windows and Linux.
 migrations/*.sql text eol=lf
 Dockerfile text eol=lf
+*.rs text eol=lf
+Cargo.toml text eol=lf
+Cargo.lock text eol=lf

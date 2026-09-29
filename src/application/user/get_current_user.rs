@@ -1,24 +1,23 @@
+use crate::application::errors::ApplicationError;
+use crate::domain::{
+    errors::DomainError,
+    user::{entity::User, repository::UserRepository},
+};
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::domain::user::{repository::UserRepository, user::User};
-
 #[derive(Clone)]
-pub struct GetCurrentUserUseCase<R>
-where
-    R: UserRepository,
-{
-    user_repository: R,
+pub struct GetCurrentUserUseCase {
+    users: Arc<dyn UserRepository>,
 }
-
-impl<R> GetCurrentUserUseCase<R>
-where
-    R: UserRepository,
-{
-    pub fn new(user_repository: R) -> Self {
-        Self { user_repository }
+impl GetCurrentUserUseCase {
+    pub fn new(users: Arc<dyn UserRepository>) -> Self {
+        Self { users }
     }
-
-    pub async fn execute(&self, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {
-        self.user_repository.get_user_by_id(&user_id).await
+    pub async fn execute(&self, user_id: Uuid) -> Result<User, ApplicationError> {
+        self.users
+            .get_user_by_id(&user_id)
+            .await?
+            .ok_or_else(|| DomainError::UserNotFound.into())
     }
 }

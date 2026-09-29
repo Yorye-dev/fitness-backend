@@ -1,131 +1,135 @@
+use crate::{
+    application::{errors::ApplicationError, security::token_service::TokenError},
+    domain::errors::{DomainError, RepositoryError},
+    presentation::dto::response::api_error::ApiErrorResponse,
+};
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 
-use crate::domain::errors::DomainError;
-use crate::presentation::dto::response::api_error::ApiErrorResponse;
-
 #[derive(Debug)]
 pub enum ApiError {
     BadRequest(String),
     Validation(String),
-
     Unauthorized,
     InvalidCredentials,
     Forbidden,
     InvalidToken,
-
     UserNotFound,
     MealNotFound,
     NutritionGoalsNotFound,
-
-    Conflict(String),
-
+    NotFound,
+    MethodNotAllowed,
+    Conflict,
+    UnsupportedMediaType,
+    PayloadTooLarge,
     Internal,
 }
-
 impl ApiError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
-
-            Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
-
-            Self::Unauthorized | Self::InvalidCredentials | Self::InvalidToken => {
-                StatusCode::UNAUTHORIZED
-            }
-
-            Self::Forbidden => StatusCode::FORBIDDEN,
-
-            Self::UserNotFound | Self::MealNotFound | Self::NutritionGoalsNotFound => {
-                StatusCode::NOT_FOUND
-            }
-
-            Self::Conflict(_) => StatusCode::CONFLICT,
-
-            Self::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+    fn details(&self) -> (StatusCode, &'static str, String) {
+        let (status, code, message) = match self {
+            Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "BAD_REQUEST", message.as_str()),
+            Self::Validation(message) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "VALIDATION_ERROR",
+                message.as_str(),
+            ),
+            Self::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                "UNAUTHORIZED",
+                "Authentication required",
+            ),
+            Self::InvalidCredentials => (
+                StatusCode::UNAUTHORIZED,
+                "INVALID_CREDENTIALS",
+                "Invalid username or password",
+            ),
+            Self::Forbidden => (
+                StatusCode::FORBIDDEN,
+                "FORBIDDEN",
+                "You do not have permission to perform this action",
+            ),
+            Self::InvalidToken => (
+                StatusCode::UNAUTHORIZED,
+                "INVALID_TOKEN",
+                "Invalid or expired authentication token",
+            ),
+            Self::UserNotFound => (StatusCode::NOT_FOUND, "USER_NOT_FOUND", "User not found"),
+            Self::MealNotFound => (StatusCode::NOT_FOUND, "MEAL_NOT_FOUND", "Meal not found"),
+            Self::NutritionGoalsNotFound => (
+                StatusCode::NOT_FOUND,
+                "NUTRITION_GOALS_NOT_FOUND",
+                "Nutrition goals not found",
+            ),
+            Self::NotFound => (StatusCode::NOT_FOUND, "NOT_FOUND", "Resource not found"),
+            Self::MethodNotAllowed => (
+                StatusCode::METHOD_NOT_ALLOWED,
+                "METHOD_NOT_ALLOWED",
+                "Method not allowed",
+            ),
+            Self::Conflict => (
+                StatusCode::CONFLICT,
+                "CONFLICT",
+                "Resource already exists or is still in use",
+            ),
+            Self::UnsupportedMediaType => (
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "UNSUPPORTED_MEDIA_TYPE",
+                "Expected application/json",
+            ),
+            Self::PayloadTooLarge => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "PAYLOAD_TOO_LARGE",
+                "Request body too large",
+            ),
+            Self::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "INTERNAL",
+                "Internal server error",
+            ),
+        };
+        (status, code, message.to_owned())
     }
 
-    fn code(&self) -> &'static str {
-        match self {
-            Self::BadRequest(_) => "BAD_REQUEST",
-            Self::Validation(_) => "VALIDATION_ERROR",
-
-            Self::Unauthorized => "UNAUTHORIZED",
-            Self::InvalidCredentials => "INVALID_CREDENTIALS",
-            Self::Forbidden => "FORBIDDEN",
-            Self::InvalidToken => "INVALID_TOKEN",
-
-            Self::UserNotFound => "USER_NOT_FOUND",
-            Self::MealNotFound => "MEAL_NOT_FOUND",
-            Self::NutritionGoalsNotFound => "NUTRITION_GOALS_NOT_FOUND",
-
-            Self::Conflict(_) => "CONFLICT",
-
-            Self::Internal => "INTERNAL_SERVER_ERROR",
-        }
-    }
-
-    fn message(&self) -> String {
-        match self {
-            Self::BadRequest(message) | Self::Validation(message) | Self::Conflict(message) => {
-                message.clone()
-            }
-
-            Self::Unauthorized => "Authentication required".to_string(),
-
-            Self::InvalidCredentials => "Invalid username or password".to_string(),
-
-            Self::Forbidden => "You do not have permission to perform this action".to_string(),
-
-            Self::InvalidToken => "Invalid or expired authentication token".to_string(),
-
-            Self::UserNotFound => "User not found".to_string(),
-
-            Self::MealNotFound => "Meal not found".to_string(),
-
-            Self::NutritionGoalsNotFound => "Nutrition goals not found".to_string(),
-
-            Self::Internal => "Internal server error".to_string(),
+    pub fn authentication(error: ApplicationError) -> Self {
+        match error {
+            ApplicationError::Domain(DomainError::UserNotFound) => Self::InvalidToken,
+            error => error.into(),
         }
     }
 }
-
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status = self.status_code();
-
-        let body = ApiErrorResponse::new(self.code(), self.message());
-
-        (status, Json(body)).into_response()
+        let (status, code, message) = self.details();
+        (status, Json(ApiErrorResponse::new(code, message))).into_response()
     }
 }
-
-impl From<DomainError> for ApiError {
-    fn from(error: DomainError) -> Self {
+impl From<ApplicationError> for ApiError {
+    fn from(error: ApplicationError) -> Self {
         match error {
-            DomainError::UserNotFound => Self::UserNotFound,
-
-            DomainError::InvalidCredentials => Self::InvalidCredentials,
-
-            DomainError::Unauthorized => Self::Unauthorized,
-
-            DomainError::ValidationError(message) => Self::Validation(message),
-
-            DomainError::MissingToken => Self::Unauthorized,
-
-            DomainError::InvalidHeader => {
-                Self::BadRequest("Invalid authorization header".to_string())
-            }
-
-            DomainError::InvalidToken => Self::InvalidToken,
-
-            DomainError::DatabaseError(_)
-            | DomainError::HashingError
-            | DomainError::GenerateTokenError => Self::Internal,
+            ApplicationError::Domain(error) => match error {
+                DomainError::UserNotFound => Self::UserNotFound,
+                DomainError::MealNotFound => Self::MealNotFound,
+                DomainError::NutritionGoalsNotFound => Self::NutritionGoalsNotFound,
+                DomainError::InvalidCredentials => Self::InvalidCredentials,
+                DomainError::Validation(message) => Self::Validation(message),
+            },
+            ApplicationError::Repository(RepositoryError::Conflict) => Self::Conflict,
+            ApplicationError::Repository(RepositoryError::NotFound) => Self::NotFound,
+            ApplicationError::Token(TokenError::Invalid) => Self::InvalidToken,
+            _ => Self::Internal,
+        }
+    }
+}
+impl From<axum::extract::rejection::JsonRejection> for ApiError {
+    fn from(error: axum::extract::rejection::JsonRejection) -> Self {
+        match error.status() {
+            StatusCode::UNPROCESSABLE_ENTITY => Self::Validation("Invalid JSON fields".into()),
+            StatusCode::UNSUPPORTED_MEDIA_TYPE => Self::UnsupportedMediaType,
+            StatusCode::PAYLOAD_TOO_LARGE => Self::PayloadTooLarge,
+            _ => Self::BadRequest("Invalid JSON body".into()),
         }
     }
 }

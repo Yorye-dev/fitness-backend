@@ -1,63 +1,53 @@
-use serde::Serialize;
+use crate::application::{
+    errors::ApplicationError,
+    security::{password_service::PasswordService, token_service::TokenService},
+};
+use crate::domain::{errors::DomainError, user::repository::UserRepository};
+use std::sync::Arc;
 
-use crate::domain::errors::DomainError;
-use crate::domain::user::repository::UserRepository;
-use crate::infrastructure::auth::jwt::Jwt;
-use crate::infrastructure::security::password::verify_password;
-
-#[derive(Debug)]
 pub struct LoginInput {
     pub username: String,
     pub password: String,
 }
-
-#[derive(Serialize)]
 pub struct AuthTokens {
     pub access_token: String,
     pub refresh_token: String,
 }
 
 #[derive(Clone)]
-pub struct LoginUseCase<R: UserRepository> {
-    user_repo: R,
-    jwt: Jwt,
+pub struct LoginUseCase {
+    users: Arc<dyn UserRepository>,
+    tokens: Arc<dyn TokenService>,
+    passwords: Arc<dyn PasswordService>,
 }
-
-impl<R: UserRepository> LoginUseCase<R> {
-    pub fn new(user_repo: R, jwt: Jwt) -> Self {
-        Self { user_repo, jwt }
+impl LoginUseCase {
+    pub fn new(
+        users: Arc<dyn UserRepository>,
+        tokens: Arc<dyn TokenService>,
+        passwords: Arc<dyn PasswordService>,
+    ) -> Self {
+        Self {
+            users,
+            tokens,
+            passwords,
+        }
     }
-
-    pub async fn execute(
-        &self,
-        input: LoginInput,
-    ) -> Result<AuthTokens, DomainError> {
+    pub async fn execute(&self, input: LoginInput) -> Result<AuthTokens, ApplicationError> {
         let user = self
-            .user_repo
+            .users
             .get_sign_in_user_by_username(&input.username)
             .await?
-            .ok_or(DomainError::UserNotFound)?;
-
-        if !verify_password(
-            &input.password,
-            &user.password_hash,
-        ) {
-            return Err(DomainError::InvalidCredentials);
+            .ok_or(DomainError::InvalidCredentials)?;
+        if !self
+            .passwords
+            .verify(&input.password, user.password_hash())
+            .await?
+        {
+            return Err(DomainError::InvalidCredentials.into());
         }
-
-        let access_token = self
-            .jwt
-            .generate_access_token(&user.id)
-            .map_err(|_| DomainError::GenerateTokenError)?;
-
-        let refresh_token = self
-            .jwt
-            .generate_refresh_token(&user.id)
-            .map_err(|_| DomainError::GenerateTokenError)?;
-
         Ok(AuthTokens {
-            access_token,
-            refresh_token,
+            access_token: self.tokens.create_access_token(&user.id())?,
+            refresh_token: self.tokens.create_refresh_token(&user.id())?,
         })
     }
 }

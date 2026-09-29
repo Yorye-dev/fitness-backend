@@ -1,8 +1,6 @@
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, FromRow, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Meal {
     pub id: Uuid,
     pub user_id: Uuid,

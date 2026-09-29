@@ -1,50 +1,21 @@
-use uuid::Uuid;
-
-use crate::domain::errors::DomainError;
-use crate::domain::user::repository::UserRepository;
-use crate::infrastructure::auth::jwt::Jwt;
+use crate::application::{errors::ApplicationError, security::token_service::TokenService};
+use crate::domain::{errors::DomainError, user::repository::UserRepository};
+use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct RefreshTokenUseCase<R: UserRepository> {
-    user_repo: R,
-    jwt: Jwt,
+pub struct RefreshTokenUseCase {
+    users: Arc<dyn UserRepository>,
+    tokens: Arc<dyn TokenService>,
 }
-
-impl<R: UserRepository> RefreshTokenUseCase<R> {
-    pub fn new(user_repo: R, jwt: Jwt) -> Self {
-        Self { user_repo, jwt }
+impl RefreshTokenUseCase {
+    pub fn new(users: Arc<dyn UserRepository>, tokens: Arc<dyn TokenService>) -> Self {
+        Self { users, tokens }
     }
-
-    pub async fn execute(
-        &self,
-        refresh_token: String,
-    ) -> Result<String, DomainError> {
-        let claims = self
-            .jwt
-            .decode_token(&refresh_token)
-            .map_err(|_| DomainError::InvalidToken)?;
-
-        let user_id = claims.subject.clone();
-
-        let user_uuid =
-            Uuid::parse_str(&user_id)
-                .map_err(|_| DomainError::InvalidToken)?;
-
-        let exists = self
-            .user_repo
-            .exists(&user_uuid)
-            .await
-            .map_err(|e| DomainError::DatabaseError(e))?;
-
-        if !exists {
-            return Err(DomainError::UserNotFound);
+    pub async fn execute(&self, token: &str) -> Result<String, ApplicationError> {
+        let identity = self.tokens.validate_refresh_token(token)?;
+        if !self.users.exists(&identity.user_id).await? {
+            return Err(DomainError::UserNotFound.into());
         }
-
-        let new_access_token = self
-            .jwt
-            .generate_access_token(&user_uuid)
-            .map_err(|_| DomainError::GenerateTokenError)?;
-
-        Ok(new_access_token)
+        Ok(self.tokens.create_access_token(&identity.user_id)?)
     }
 }

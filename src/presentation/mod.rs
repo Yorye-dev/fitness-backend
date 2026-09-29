@@ -1,7 +1,9 @@
-pub mod authenticated_user;
-pub mod dto;
-pub mod errors;
-pub mod factories;
-pub mod handlers;
-pub mod middleware;
+mod authenticated_user;
+pub mod cors;
+mod dto;
+mod errors;
+mod extractors;
+mod factories;
+mod handlers;
+mod middleware;
 pub mod routes;

@@ -1,52 +1,44 @@
+use crate::application::{errors::ApplicationError, security::password_service::PasswordService};
+use crate::domain::{errors::DomainError, user::repository::UserRepository};
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::domain::errors::DomainError;
-use crate::domain::user::repository::UserRepository;
-use crate::infrastructure::security::password::{
-    calculate_hash,
-    verify_password,
-};
-
-#[derive(Clone)]
-pub struct ChangePasswordUseCase<R: UserRepository> {
-    user_repo: R,
-}
-
-impl<R: UserRepository> ChangePasswordUseCase<R> {
-    pub fn new(user_repo: R) -> Self {
-        Self { user_repo }
+pub(super) fn validate_new_password(password: &str) -> Result<(), DomainError> {
+    if !(8..=1024).contains(&password.len()) {
+        return Err(DomainError::Validation(
+            "password must be between 8 and 1024 bytes".into(),
+        ));
     }
-
+    Ok(())
+}
+#[derive(Clone)]
+pub struct ChangePasswordUseCase {
+    users: Arc<dyn UserRepository>,
+    passwords: Arc<dyn PasswordService>,
+}
+impl ChangePasswordUseCase {
+    pub fn new(users: Arc<dyn UserRepository>, passwords: Arc<dyn PasswordService>) -> Self {
+        Self { users, passwords }
+    }
     pub async fn execute(
         &self,
         user_id: Uuid,
-        current_password: String,
-        new_password: String,
-    ) -> Result<bool, DomainError> {
+        current: &str,
+        new_password: &str,
+    ) -> Result<(), ApplicationError> {
+        validate_new_password(new_password)?;
         let user = self
-            .user_repo
+            .users
             .get_user_by_id(&user_id)
-            .await
-            .map_err(|e| DomainError::DatabaseError(e))?
+            .await?
             .ok_or(DomainError::UserNotFound)?;
-
-        if !verify_password(
-            &current_password,
-            &user.password_hash,
-        ) {
-            return Err(DomainError::InvalidCredentials);
+        if !self.passwords.verify(current, user.password_hash()).await? {
+            return Err(DomainError::InvalidCredentials.into());
         }
-
-        let new_hash =
-            calculate_hash(&new_password)
-                .map_err(|_| DomainError::HashingError)?;
-
-        let updated = self
-            .user_repo
-            .update_password(&user_id, &new_hash)
-            .await
-            .map_err(|e| DomainError::DatabaseError(e))?;
-
-        Ok(updated)
+        let hash = self.passwords.hash(new_password).await?;
+        if !self.users.update_password(&user_id, &hash).await? {
+            return Err(DomainError::UserNotFound.into());
+        }
+        Ok(())
     }
 }

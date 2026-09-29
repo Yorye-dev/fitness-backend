@@ -16,6 +16,7 @@ COPY migrations ./migrations
 
 FROM rust-base AS development
 
+RUN rustup component add rustfmt clippy
 COPY src ./src
 EXPOSE 8080
 CMD ["cargo", "run", "--locked"]

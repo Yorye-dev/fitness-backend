@@ -1,9 +1,31 @@
-use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
+use crate::domain::nutrition::goals::NutritionGoals;
 use crate::domain::nutrition::macros::Macros;
+use crate::domain::user::entity::User;
+use crate::domain::user::{activity_level::ActivityLevel, goal::Goal, sex::Sex};
 
 pub struct NutritionCalculator;
 
 impl NutritionCalculator {
+    pub fn goals_for(user: &User) -> NutritionGoals {
+        let profile = user.profile();
+        let bmr = Self::calculate_bmr(
+            profile.weight(),
+            profile.height() as f32,
+            profile.age() as u32,
+            user.sex(),
+        );
+        let tdee = Self::calculate_tdee(bmr, profile.activity_level());
+        let macros = Self::calculate_macros(tdee, profile.goal());
+        NutritionGoals::new(
+            user.id(),
+            macros.protein,
+            macros.fat,
+            macros.carbs,
+            tdee,
+            bmr,
+        )
+    }
+
     pub fn calculate_bmr(weight_kg: f32, height_cm: f32, age: u32, sex: Sex) -> f32 {
         match sex {
             Sex::Male => 10.0 * weight_kg + 6.25 * height_cm - 5.0 * age as f32 + 5.0,

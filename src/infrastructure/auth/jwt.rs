@@ -1,56 +1,62 @@
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use super::claims::{Claims, TokenType};
+use crate::application::security::token_service::{TokenError, TokenIdentity, TokenService};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use uuid::Uuid;
 
-use crate::infrastructure::auth::claims::Claims;
-
-#[derive(Clone)]
-pub struct Jwt {
-    secret_key: String,
+pub struct JwtTokenService {
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
 }
 
-impl Jwt {
-    pub fn new(secret_key: String) -> Self {
-        Self { secret_key }
+impl JwtTokenService {
+    pub fn new(secret_key: &str) -> Self {
+        Self {
+            encoding_key: EncodingKey::from_secret(secret_key.as_bytes()),
+            decoding_key: DecodingKey::from_secret(secret_key.as_bytes()),
+        }
     }
 
-    pub fn generate_token(
+    fn generate(
         &self,
         user_id: &Uuid,
         expiration_minutes: i64,
-    ) -> Result<String, jsonwebtoken::errors::Error> {
-        let claims = Claims::new(&user_id.to_string(), expiration_minutes);
-
-        encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(self.secret_key.as_bytes()),
-        )
+        token_type: TokenType,
+    ) -> Result<String, TokenError> {
+        let claims = Claims::new(&user_id.to_string(), expiration_minutes, token_type);
+        encode(&Header::new(Algorithm::HS256), &claims, &self.encoding_key)
+            .map_err(|_| TokenError::Generation)
     }
 
-    pub fn generate_access_token(
-        &self,
-        user_id: &Uuid,
-    ) -> Result<String, jsonwebtoken::errors::Error> {
-        self.generate_token(user_id, 60)
-    }
-
-    pub fn generate_refresh_token(
-        &self,
-        user_id: &Uuid,
-    ) -> Result<String, jsonwebtoken::errors::Error> {
-        self.generate_token(user_id, 10080)
-    }
-
-    pub fn decode_token(
-        &self,
-        token: &String,
-    ) -> Result<Claims, jsonwebtoken::errors::Error> {
-        let token_data = decode::<Claims>(
+    fn validate(&self, token: &str, expected_type: TokenType) -> Result<TokenIdentity, TokenError> {
+        let claims = decode::<Claims>(
             token,
-            &DecodingKey::from_secret(self.secret_key.as_bytes()),
-            &Validation::default(),
-        )?;
+            &self.decoding_key,
+            &Validation::new(Algorithm::HS256),
+        )
+        .map_err(|_| TokenError::Invalid)?
+        .claims;
+        if claims.token_type != expected_type {
+            return Err(TokenError::Invalid);
+        }
+        let user_id = Uuid::parse_str(&claims.subject).map_err(|_| TokenError::Invalid)?;
+        Ok(TokenIdentity { user_id })
+    }
+}
 
-        Ok(token_data.claims)
+impl TokenService for JwtTokenService {
+    fn create_access_token(&self, user_id: &Uuid) -> Result<String, TokenError> {
+        self.generate(user_id, 60, TokenType::Access)
+    }
+
+    fn create_refresh_token(&self, user_id: &Uuid) -> Result<String, TokenError> {
+        self.generate(user_id, 10080, TokenType::Refresh)
+    }
+
+    fn validate_access_token(&self, token: &str) -> Result<TokenIdentity, TokenError> {
+        self.validate(token, TokenType::Access)
+    }
+
+    fn validate_refresh_token(&self, token: &str) -> Result<TokenIdentity, TokenError> {
+        self.validate(token, TokenType::Refresh)
     }
 }

@@ -1,12 +1,14 @@
+use crate::application::errors::ApplicationError;
+use crate::domain::{
+    errors::DomainError,
+    nutrition::calculator::NutritionCalculator,
+    user::{
+        activity_level::ActivityLevel, entity::User, goal::Goal, profile::UserProfile,
+        repository::UserRepository,
+    },
+};
+use std::sync::Arc;
 use uuid::Uuid;
-
-use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal};
-use crate::domain::errors::DomainError;
-use crate::domain::nutrition::calculator::NutritionCalculator;
-use crate::domain::nutrition::goals::NutritionGoals;
-use crate::domain::nutrition::repository::NutritionRepository;
-use crate::domain::user::repository::UserRepository;
-use crate::domain::user::user::{PublicUser, User};
 
 #[derive(Debug)]
 pub struct UpdateUserInput {
@@ -16,60 +18,33 @@ pub struct UpdateUserInput {
     pub activity_level: ActivityLevel,
     pub goal: Goal,
 }
-
 #[derive(Clone)]
-pub struct UpdateUserUseCase<R: UserRepository, N: NutritionRepository> {
-    user_repo: R,
-    nutrition_repo: N,
+pub struct UpdateUserUseCase {
+    users: Arc<dyn UserRepository>,
 }
-
-impl<R: UserRepository, N: NutritionRepository> UpdateUserUseCase<R, N> {
-    pub fn new(user_repo: R, nutrition_repo: N) -> Self {
-        Self {
-            user_repo,
-            nutrition_repo,
-        }
+impl UpdateUserUseCase {
+    pub fn new(users: Arc<dyn UserRepository>) -> Self {
+        Self { users }
     }
-
     pub async fn execute(
         &self,
         user_id: Uuid,
         input: UpdateUserInput,
-    ) -> Result<(PublicUser, NutritionGoals), DomainError> {
+    ) -> Result<User, ApplicationError> {
+        let profile = UserProfile::new(
+            input.weight,
+            input.height,
+            input.age,
+            input.activity_level,
+            input.goal,
+        )?;
         let mut user = self
-            .user_repo
+            .users
             .get_user_by_id(&user_id)
-            .await
-            .map_err(|_| DomainError::UserNotFound)?
+            .await?
             .ok_or(DomainError::UserNotFound)?;
-
-        user.weight = input.weight;
-        user.height = input.height;
-        user.age = input.age;
-        user.activity_level = input.activity_level;
-        user.goal = input.goal;
-
-        let updated_user = self.user_repo.update_user(&user).await?;
-
-        let goals = Self::recalculate_goals(&updated_user);
-
-        let updated_goals = self.nutrition_repo.update_user_goals(&goals).await?;
-
-        Ok((PublicUser::from(updated_user), updated_goals))
-    }
-
-    fn recalculate_goals(user: &User) -> NutritionGoals {
-        let bmr = NutritionCalculator::calculate_bmr(
-            user.weight,
-            user.height as f32,
-            user.age as u32,
-            user.sex.clone(),
-        );
-
-        let tdee = NutritionCalculator::calculate_tdee(bmr, user.activity_level.clone());
-
-        let macros = NutritionCalculator::calculate_macros(tdee, user.goal.clone());
-
-        NutritionGoals::new(user.id, macros.protein, macros.fat, macros.carbs, tdee, bmr)
+        user.update_profile(profile);
+        let goals = NutritionCalculator::goals_for(&user);
+        Ok(self.users.update_user(&user, &goals).await?)
     }
 }

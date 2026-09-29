@@ -1,15 +1,17 @@
-pub mod auth_routes;
-pub mod health_routes;
-pub mod protected_routes;
+mod auth;
+mod health_routes;
+mod protected;
 
+pub use health_routes::health_routes;
+
+use crate::{app_state::AppState, presentation::errors::api_error::ApiError};
 use axum::Router;
-
-use crate::app_state::AppState;
-use crate::presentation::routes::{auth_routes::auth_routes, protected_routes::protected_routes};
 
 pub fn app_routes(state: AppState) -> Router {
     Router::new()
-        .nest("/auth", auth_routes())
-        .nest("/api", protected_routes(state.clone()))
+        .nest("/auth", auth::routes())
+        .nest("/api", protected::routes(state.clone()))
+        .fallback(|| async { ApiError::NotFound })
+        .method_not_allowed_fallback(|| async { ApiError::MethodNotAllowed })
         .with_state(state)
 }

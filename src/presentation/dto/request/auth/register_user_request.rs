@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::application::user::register_user::RegisterUserInput;
-use crate::domain::enums::{activity_level::ActivityLevel, goals::Goal, sex::Sex};
+use crate::domain::user::{activity_level::ActivityLevel, goal::Goal, sex::Sex};
 
 #[derive(Debug, Deserialize)]
 pub struct RegisterUserRequest {
