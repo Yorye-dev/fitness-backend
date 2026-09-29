@@ -154,3 +154,9 @@ Las variantes _FILE tienen prioridad. Los secretos y .env reales quedan fuera de
 En producción, el frontal y la API comparten origen mediante Nginx; CORS puede quedar vacío.
 
 Consulta [la trazabilidad del refactor](docs/refactor.md) para relacionar cada issue con el código.
+
+## Evolución del esquema
+
+El [diseño de base de datos para próximas versiones](docs/database/README.md) incluye diagramas,
+reglas de negocio y un [DDL de referencia](docs/database/schema.sql) para nutrición y entrenamientos.
+Es una propuesta separada de las migraciones activas; todavía no está aplicada al backend.
