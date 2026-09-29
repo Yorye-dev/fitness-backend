@@ -19,7 +19,7 @@ impl GetDailyNutritionUseCase {
         user_id: Uuid,
         date: NaiveDate,
     ) -> Result<DailyNutrition, ApplicationError> {
-        let goals = self.goals.execute(user_id).await?;
+        let goals = self.goals.execute_on_date(user_id, date).await?;
         let meals = self.nutrition.get_daily_meals(&user_id, &date).await?;
         Ok(DailyNutrition::new(date, goals, meals))
     }

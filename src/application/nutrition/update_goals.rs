@@ -36,7 +36,7 @@ impl UpdateGoalsUseCase {
             input.tdee,
         ]
         .iter()
-        .any(|v| !v.is_finite() || *v < 0.0)
+        .any(|v| !v.is_finite() || *v < 0.0 || *v >= 10_000_000.0)
             || input.tdee == 0.0
         {
             return Err(DomainError::Validation(

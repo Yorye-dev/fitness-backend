@@ -25,7 +25,7 @@ impl TryFrom<RegisterUserRequest> for RegisterUserInput {
             errors.push("username cannot be empty".to_string());
         }
 
-        if request.username.len() < 3 || request.username.len() > 50 {
+        if !(3..=50).contains(&request.username.chars().count()) {
             errors.push("username must be between 3 and 50 characters".to_string());
         }
 

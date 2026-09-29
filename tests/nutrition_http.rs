@@ -91,6 +91,14 @@ async fn daily_totals_respect_date_user_and_saved_targets(pool: PgPool) {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+    // Make this fixture effective on the historical day under test.
+    sqlx::query(
+        "UPDATE nutrition_goal_versions SET effective_from=DATE '2026-09-17' WHERE user_id=$1",
+    )
+    .bind(alice.id)
+    .execute(&pool)
+    .await
+    .unwrap();
     let (status, body) = request(
         &app,
         "GET",
@@ -159,7 +167,7 @@ async fn daily_rejects_bad_dates_and_user_id_parameters(pool: PgPool) {
 async fn daily_can_calculate_missing_goals(pool: PgPool) {
     let app = app(pool.clone());
     let account = register(&app, "alice").await;
-    sqlx::query("DELETE FROM users_nutrition_goals WHERE user_id=$1")
+    sqlx::query("DELETE FROM nutrition_goal_versions WHERE user_id=$1")
         .bind(account.id)
         .execute(&pool)
         .await

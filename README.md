@@ -112,6 +112,12 @@ Ninguna respuesta de usuario contiene password_hash.
 Los errores de validación devuelven 422, las credenciales/tokens inválidos 401, los recursos
 ausentes 404 y los conflictos 409. Los fallos internos devuelven un mensaje genérico.
 
+Las rutas `/api/nutrition/meals` conservan su contrato, pero utilizan la tabla `foods`.
+Eliminar un alimento lo archiva: las ingestas anteriores conservan su nombre y nutrientes.
+Los objetivos se guardan por fecha y el resumen busca la versión vigente en el día solicitado.
+Si no existe una versión para ese día, se conserva el cálculo estimado desde el perfil que ya
+ofrecía la API; no debe interpretarse como un objetivo histórico registrado.
+
 ## Comprobaciones
 
 Desde fitness-deploy, con el entorno de desarrollo arrancado:
@@ -155,8 +161,28 @@ En producción, el frontal y la API comparten origen mediante Nginx; CORS puede 
 
 Consulta [la trazabilidad del refactor](docs/refactor.md) para relacionar cada issue con el código.
 
-## Evolución del esquema
+## Esquema y migraciones
 
-El [diseño de base de datos para próximas versiones](docs/database/README.md) incluye diagramas,
-reglas de negocio y un [DDL de referencia](docs/database/schema.sql) para nutrición y entrenamientos.
-Es una propuesta separada de las migraciones activas; todavía no está aplicada al backend.
+El [esquema de base de datos](docs/database/README.md) incluye diagramas y reglas de negocio.
+Las migraciones activas son:
+
+| Versión | Cambios |
+| --- | --- |
+| 0001 | Esquema inicial, conservado sin modificaciones |
+| 0002 | Restricciones de usuario, zona horaria, timestamps y catálogo `foods` |
+| 0003 | Diario, versiones de objetivos y conservación del esquema antiguo en `legacy` |
+| 0004 | Ejercicios, rutinas, sesiones y series de entrenamiento |
+
+El backend aplica las migraciones pendientes al arrancar, tanto en Windows/Linux como en Raspberry.
+Se registra cada versión y su checksum en `_sqlx_migrations`. El [DDL de referencia](docs/database/schema.sql)
+sirve para leer el modelo; la instalación y la actualización del backend utilizan `migrations/`.
+
+Las escrituras actuales ya usan el nuevo esquema nutricional. Las tablas de entrenamiento están
+preparadas; sus casos de uso y endpoints se desarrollarán por separado. PostgreSQL almacena los
+decimales y calcula los consumos con `NUMERIC`; los adaptadores mantienen por compatibilidad los
+tipos `f32` actuales de aplicación/DTO. La conversión completa del dominio a decimales queda separada
+de esta actualización de esquema.
+
+Los datos antiguos se mantienen en `legacy` y se consultan junto a los nuevos a través de
+`consumption_entries`. No se reconstruyen sus nutrientes desde el catálogo actual.
+Consulta [el procedimiento de actualización y recuperación](docs/database/migrations.md).

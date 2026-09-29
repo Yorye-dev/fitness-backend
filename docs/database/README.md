@@ -1,13 +1,18 @@
-# Esquema objetivo de Fitness
+# Esquema de Fitness
 
-**Propuesta para las próximas versiones del backend · PostgreSQL 17.**
+**PostgreSQL 17 · Implementado mediante migraciones 0001–0004.**
 
-El [DDL completo](schema.sql) define 11 tablas, una vista de consumo diario, claves foráneas,
-restricciones, índices y actualización automática de `updated_at`.
+El modelo tiene 11 tablas activas, vistas de consumo, claves foráneas, restricciones, índices
+y actualización automática de `updated_at`. El [DDL de referencia](schema.sql) describe el modelo
+para una base vacía. La fuente de instalación y actualización es la carpeta `migrations/`.
 
-Es un diseño de referencia para una base vacía. El backend actual sigue utilizando
-`migrations/0001_initial_schema.sql`; este documento no es una migración ni acredita que el código
-actual funcione con el esquema propuesto. El SQL no se ha ejecutado ni aplicado a ninguna base.
+Las migraciones se han aplicado al PostgreSQL local mediante SQLx. El backend utiliza las nuevas
+tablas nutricionales. Las tres tablas anteriores se conservan en el esquema `legacy`, y la vista
+`consumption_entries` unifica ingestas antiguas y nuevas. Las tablas de entrenamiento están creadas;
+sus casos de uso y rutas siguen pendientes de desarrollo.
+
+Consulta el [procedimiento de migración](migrations.md), las decisiones de compatibilidad y las
+comprobaciones realizadas. La Raspberry no se ha conectado ni actualizado en esta sesión.
 
 ## Alcance y convenciones
 
@@ -61,6 +66,7 @@ erDiagram
         date local_date
         timestamptz consumed_at
         text time_zone
+        boolean time_is_estimated
         text meal_type
     }
     meal_log_items {
@@ -109,18 +115,23 @@ un día es la última cuya fecha sea menor o igual a ese día. No hace falta un 
 pueda desajustarse respecto a la versión siguiente.
 
 - El caso de uso crea una versión al configurar los primeros objetivos.
-- Los cambios habituales se programan para una nueva fecha, por ejemplo mañana.
+- El endpoint actual guarda los cambios en la fecha local actual del usuario. Varias correcciones
+  del mismo día actualizan esa versión; las versiones de días anteriores se conservan.
+- Programar objetivos para una fecha futura requiere un caso de uso posterior.
 - Las versiones históricas se tratan como inmutables desde la aplicación. La tabla por sí sola no
   prohíbe actualizarlas o insertar versiones retroactivas: esas operaciones requieren un flujo
   explícito de corrección y, en producción, permisos apropiados del rol de escritura.
 - `calories_target` expresa la meta; `tdee_estimate` y `bmr_estimate` son estimaciones opcionales.
-- Si no hay objetivos para una fecha, la consulta devuelve objetivos y saldos `NULL`. La API debe
-  distinguir ese estado de un objetivo de cero; no debe aplicar silenciosamente las metas actuales.
+- La consulta SQL de referencia devuelve objetivos y saldos `NULL` si no encuentra una versión.
+  Por compatibilidad, el endpoint diario actual conserva su cálculo estimado desde el perfil para
+  ese caso. Esa estimación no representa un objetivo histórico registrado. Un contrato futuro
+  podrá exponer explícitamente la ausencia de objetivos y la procedencia de las estimaciones.
 
 ### Resumen diario y macros restantes
 
-La vista `daily_nutrition_totals` suma los consumos. El saldo se calcula al consultar y puede ser
-negativo si se supera la meta. Un día sin comidas se devuelve con consumos a cero.
+La vista `daily_nutrition_totals` suma ingestas nuevas y antiguas mediante `consumption_entries`.
+Solo cuenta comidas que tienen ingestas. El saldo se calcula al consultar y puede ser negativo
+si se supera la meta. Un día sin comidas se devuelve con consumos a cero.
 
 Esta consulta de referencia usa parámetros del backend: `$1` es el usuario autenticado y `$2` el día.
 
@@ -273,8 +284,11 @@ Por eso cada comida y sesión guarda `time_zone` y `local_date`. Un `CHECK` comp
 La aplicación valida nombres de zona IANA y los copia desde la preferencia del usuario; cambiar
 esa preferencia conserva el día asignado a los registros anteriores.
 
-La aplicación debe utilizar un tipo decimal compatible con SQLx para `NUMERIC` y acordar la
-serialización de los DTO. Las presentaciones pueden redondear los valores para mostrarlos.
+PostgreSQL almacena y calcula los consumos con `NUMERIC`. Los adaptadores actuales escriben los
+valores numéricos de entrada mediante su representación decimal y proyectan los resultados al `f32`
+que utiliza el contrato existente de aplicación/DTO. La suma de la respuesta de dominio también
+sigue usando esos tipos. Completar la conversión del dominio a decimales será un cambio posterior.
+Las presentaciones pueden redondear los valores para mostrarlos.
 Los totales generados se obtienen desde la copia de cada ingesta; no hay un contador mutable
 de «macros restantes». El ejercicio no modifica automáticamente los objetivos nutricionales.
 
@@ -288,7 +302,12 @@ Reglas que deberán implementar los nuevos casos de uso:
 6. Gestionar reintentos de creación sin duplicar ingestas o sesiones, por ejemplo mediante un UUID
    de recurso estable proporcionado para la operación y un contrato de idempotencia en la API.
 
-## 5. Evolución desde el esquema actual
+El contrato interno de consumo anterior solo proporciona una fecha. Su adaptación crea una comida
+a las 12:00 de la zona del usuario con `time_is_estimated=true`; esa hora no debe mostrarse como si
+hubiese sido registrada por el usuario. Un nuevo caso de uso podrá recibir el instante real y usar
+`time_is_estimated=false`.
+
+## 5. Transición aplicada desde el esquema inicial
 
 | Actual | Objetivo | Trabajo necesario |
 | --- | --- | --- |
@@ -298,19 +317,23 @@ Reglas que deberán implementar los nuevos casos de uso:
 | `users_nutrition_goals` | `nutrition_goal_versions` | Fecha de vigencia y separación de meta/estimación |
 | Sin tablas de entrenamiento | Seis tablas nuevas | Casos de uso, repositorios y rutas nuevos |
 
-Orden propuesto: catálogo/diario, objetivos históricos y entrenamientos. Se implementará mediante
-migraciones nuevas y cambios coordinados de repositorios, DTO y pruebas. No se edita `0001` ni se
-copia este DDL completo como si fuera una migración incremental.
+La transición se implementa en `0002_users_and_foods.sql`, `0003_nutrition_diary.sql` y
+`0004_workout_tracking.sql`, con cambios en repositorios y pruebas. `0001` permanece intacta.
+El DDL de referencia no se ejecuta directamente sobre una instalación existente.
 
-Si existen datos que conservar, el esquema actual no permite recuperar de forma fiable la hora,
-la agrupación de comidas ni todas las versiones originales de alimentos y objetivos. Hay que definir
-esa política antes de migrar. Los nutrientes ya guardados en `daily_consumption` deben conservarse:
-recalcularlos desde el catálogo actual o reconstruir una base por 100 g con solo tres decimales puede
-cambiarlos. Una transición puede mantener los registros antiguos como histórico de lectura hasta
-que una conversión compatible haya sido definida y verificada.
+El esquema inicial no permite recuperar de forma fiable la hora, la agrupación de comidas ni todas
+las versiones originales de alimentos y objetivos. Por eso se conservan sus tablas en `legacy`.
+Los nutrientes guardados en `legacy.daily_consumption` se leen como fueron registrados. Su nombre
+de alimento es el que existía al migrar, porque no se guardaban nombres históricos.
 
-La validación de este diseño, su conversión en migraciones y la aplicación a un entorno son pasos
-posteriores. Este documento y el SQL se han generado como propuesta, sin ejecutar el DDL.
+Los alimentos se copian a `foods` con sus UUID originales. Los objetivos existentes se importan
+como una versión de origen `migration`, con vigencia desde la primera ingesta conocida o desde el
+día de migración si no hay ingestas anteriores. Esta fecha es una política de compatibilidad y no
+reconstruye el historial real de objetivos que el esquema anterior no almacenaba.
+
+La base local estaba vacía antes de migrar. Las migraciones se ejecutaron y quedaron registradas
+por SQLx; la suite de integración también las aplicó en sus bases temporales. No se ha realizado
+una actualización de la Raspberry ni una migración de datos reales de otros equipos.
 
 ## Referencias técnicas
 

@@ -14,17 +14,21 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 #[sqlx::test]
-async fn invalid_stored_profiles_produce_an_internal_error(pool: PgPool) {
+async fn database_rejects_invalid_profiles(pool: PgPool) {
     let app = app(pool.clone());
     let account = register(&app, "alice").await;
-    sqlx::query("UPDATE users SET age=0 WHERE id=$1")
+    let error = sqlx::query("UPDATE users SET age=0 WHERE id=$1")
         .bind(account.id)
         .execute(&pool)
         .await
-        .unwrap();
+        .unwrap_err();
+    assert_eq!(
+        error.as_database_error().unwrap().code().as_deref(),
+        Some("23514")
+    );
     let (status, body) = request(&app, "GET", "/api/me", Some(&account.access), None).await;
-    assert_error(status, &body, StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL");
-    assert!(!body.to_string().contains("invalid weight, height or age"));
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["data"]["age"], 30);
 }
 
 #[sqlx::test]
@@ -45,7 +49,7 @@ async fn invalid_returned_profiles_roll_back_registration(pool: PgPool) {
     assert_error(status, &body, StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL");
     for query in [
         "SELECT COUNT(*) FROM users",
-        "SELECT COUNT(*) FROM users_nutrition_goals",
+        "SELECT COUNT(*) FROM nutrition_goal_versions",
     ] {
         let count: i64 = sqlx::query_scalar(query).fetch_one(&pool).await.unwrap();
         assert_eq!(count, 0);
@@ -56,7 +60,7 @@ async fn invalid_returned_profiles_roll_back_registration(pool: PgPool) {
 async fn failed_registration_rolls_back_and_hides_database_details(pool: PgPool) {
     sqlx::raw_sql("CREATE FUNCTION reject_goals() RETURNS trigger LANGUAGE plpgsql AS
         $$ BEGIN RAISE EXCEPTION 'private_database_detail'; END $$;
-        CREATE TRIGGER reject_goals BEFORE INSERT ON users_nutrition_goals FOR EACH ROW EXECUTE FUNCTION reject_goals();")
+        CREATE TRIGGER reject_goals BEFORE INSERT ON nutrition_goal_versions FOR EACH ROW EXECUTE FUNCTION reject_goals();")
         .execute(&pool).await.unwrap();
     let app = app(pool.clone());
     let (status, body) = request(

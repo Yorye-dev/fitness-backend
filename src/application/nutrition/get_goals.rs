@@ -6,6 +6,7 @@ use crate::domain::{
     },
     user::repository::UserRepository,
 };
+use chrono::NaiveDate;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,6 +23,26 @@ impl GetGoalsUseCase {
         if let Some(goals) = self.nutrition.get_user_goals(&user_id).await? {
             return Ok(goals);
         }
+        self.calculate_fallback(user_id).await
+    }
+
+    pub async fn execute_on_date(
+        &self,
+        user_id: Uuid,
+        date: NaiveDate,
+    ) -> Result<NutritionGoals, ApplicationError> {
+        if let Some(goals) = self
+            .nutrition
+            .get_user_goals_on_date(&user_id, &date)
+            .await?
+        {
+            return Ok(goals);
+        }
+        // Preserve the existing API's estimated-target fallback when no historical version exists.
+        self.calculate_fallback(user_id).await
+    }
+
+    async fn calculate_fallback(&self, user_id: Uuid) -> Result<NutritionGoals, ApplicationError> {
         let user = self
             .users
             .get_user_by_id(&user_id)

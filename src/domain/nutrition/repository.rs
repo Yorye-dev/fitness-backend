@@ -17,6 +17,11 @@ pub trait NutritionRepository: Send + Sync {
         &self,
         user_id: &Uuid,
     ) -> Result<Option<NutritionGoals>, RepositoryError>;
+    async fn get_user_goals_on_date(
+        &self,
+        user_id: &Uuid,
+        date: &NaiveDate,
+    ) -> Result<Option<NutritionGoals>, RepositoryError>;
     async fn save_user_goals(
         &self,
         goals: &NutritionGoals,

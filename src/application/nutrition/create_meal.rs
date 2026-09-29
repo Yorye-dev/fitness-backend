@@ -26,6 +26,14 @@ impl MealInput {
             ]
             .iter()
             .any(|value| !value.is_finite() || *value < 0.0)
+            || [
+                self.protein_per_100g,
+                self.carbs_per_100g,
+                self.fat_per_100g,
+            ]
+            .iter()
+            .any(|value| *value > 100.0)
+            || self.calories_per_100g >= 100_000.0
         {
             return Err(DomainError::Validation(
                 "invalid meal name or nutritional values".into(),

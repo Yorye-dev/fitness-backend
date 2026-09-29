@@ -110,3 +110,10 @@ por test. El bloqueo inicial de revisión automática quedó resuelto antes de e
 
 Desglose: arquitectura (1), autenticación HTTP (9), CORS (2), readiness (1), nutrición HTTP (5),
 persistencia (4), seguridad (5) y perfil de dominio (3).
+
+## Migraciones posteriores del modelo nutricional y de entrenamiento
+
+Se incorporan las migraciones 0002–0004 y se adaptan los repositorios a las nuevas tablas.
+El contrato HTTP sigue disponible. La prueba de persistencia de perfiles inválidos ahora comprueba
+que PostgreSQL rechaza el dato antes de almacenarlo. La suite completa mantiene 30 tests correctos.
+Los detalles de ejecución, compatibilidad y copia previa están en [database/migrations.md](database/migrations.md).

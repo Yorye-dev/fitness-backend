@@ -1,3 +1,4 @@
+mod goals;
 mod sqlx_nutrition_repository;
 mod sqlx_user_repository;
 
