@@ -77,14 +77,14 @@ impl UserRepositoryTrait for SqlxUserRepository {
     }
 
     async fn exists(&self, user_id: &Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query!(
-            "SELECT EXISTS (SELECT 1 FROM users WHERE id = $1) as exists",
-            user_id
+        let exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)",
         )
+        .bind(user_id)
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(result.exists.unwrap_or(false))
+        Ok(exists)
     }
 
     async fn update_password(

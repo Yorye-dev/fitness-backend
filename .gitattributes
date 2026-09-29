@@ -1,0 +1,4 @@
+* text=auto
+# Keep SQLx checksums identical on Windows and Linux.
+migrations/*.sql text eol=lf
+Dockerfile text eol=lf

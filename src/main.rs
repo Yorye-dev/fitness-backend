@@ -39,6 +39,15 @@ async fn main() {
         .await
         .expect("No se pudo conectar a PostgreSQL");
 
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("No se pudieron aplicar las migraciones de PostgreSQL");
+
+    println!("Migraciones de PostgreSQL aplicadas");
+
+    let health_routes = presentation::routes::health_routes::health_routes(pool.clone());
+
     let app_state =
         AppState::new(pool, secret_key);
 
@@ -68,6 +77,7 @@ async fn main() {
 
     let app =
         presentation::routes::app_routes(app_state)
+            .merge(health_routes)
             .layer(cors);
 
     let listener =

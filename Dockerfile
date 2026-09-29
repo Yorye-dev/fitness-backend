@@ -1,33 +1,34 @@
-FROM rust:1-bookworm AS development
+FROM rust:1-bookworm AS rust-base
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && apt-get install -y --no-install-recommends curl pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
-RUN cargo fetch --locked
-COPY src ./src
+# Cargo requires a target to be present even when only fetching dependencies.
+RUN mkdir src \
+    && printf 'fn main() {}\n' > src/main.rs \
+    && cargo fetch --locked \
+    && rm -rf src
+COPY build.rs ./
+COPY migrations ./migrations
 
+FROM rust-base AS development
+
+COPY src ./src
 EXPOSE 8080
 CMD ["cargo", "run", "--locked"]
 
-FROM rust:1-bookworm AS build
+FROM rust-base AS build
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
-RUN cargo fetch --locked
 COPY src ./src
 RUN cargo build --locked --release
 
 FROM debian:bookworm-slim AS production
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libssl3 \
+    && apt-get install -y --no-install-recommends ca-certificates curl libssl3 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --create-home fitness
 
