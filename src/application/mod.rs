@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod errors;
 pub mod health;
+pub mod hydration;
 pub mod nutrition;
 pub mod security;
 pub mod training;

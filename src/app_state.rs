@@ -2,6 +2,7 @@ use crate::application::{
     auth::{
         login::LoginUseCase, refresh_token::RefreshTokenUseCase, verify_token::VerifyTokenUseCase,
     },
+    hydration::Hydration,
     nutrition::{
         create_meal::CreateMealUseCase,
         delete_consumption::DeleteConsumptionUseCase,
@@ -18,6 +19,7 @@ use crate::application::{
     training::{
         routines::{ArchiveRoutineUseCase, ListRoutinesUseCase, SaveRoutineUseCase},
         schedule::{GetDailyWorkoutUseCase, GetWeeklyScheduleUseCase, SaveWeeklyScheduleUseCase},
+        sessions::WorkoutSessions,
     },
     user::{
         change_password::ChangePasswordUseCase, get_current_user::GetCurrentUserUseCase,
@@ -25,14 +27,17 @@ use crate::application::{
     },
 };
 use crate::domain::{
+    hydration::repository::HydrationRepository,
     nutrition::repository::{ConsumptionRepository, MealRepository, NutritionRepository},
     training::repository::TrainingRepository,
+    training::session_repository::WorkoutSessionRepository,
     user::repository::UserRepository,
 };
 use crate::infrastructure::{
     auth::jwt::JwtTokenService,
     persistence::repositories::{
-        SqlxNutritionRepository, SqlxTrainingRepository, SqlxUserRepository,
+        SqlxHydrationRepository, SqlxNutritionRepository, SqlxTrainingRepository,
+        SqlxUserRepository, SqlxWorkoutSessionRepository,
     },
     security::password::Argon2PasswordService,
 };
@@ -40,6 +45,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 pub struct AppDependencies {
+    pub hydration: Arc<dyn HydrationRepository>,
+    pub workout_sessions: Arc<dyn WorkoutSessionRepository>,
     pub users: Arc<dyn UserRepository>,
     pub nutrition: Arc<dyn NutritionRepository>,
     pub meals: Arc<dyn MealRepository>,
@@ -51,6 +58,8 @@ pub struct AppDependencies {
 
 #[derive(Clone)]
 pub struct AppState {
+    pub(crate) hydration: Hydration,
+    pub(crate) workout_sessions: WorkoutSessions,
     pub(crate) list_routines_use_case: ListRoutinesUseCase,
     pub(crate) save_routine_use_case: SaveRoutineUseCase,
     pub(crate) archive_routine_use_case: ArchiveRoutineUseCase,
@@ -80,6 +89,8 @@ impl AppState {
     pub fn new(pool: PgPool, secret_key: String) -> Self {
         let nutrition = Arc::new(SqlxNutritionRepository::new(pool.clone()));
         Self::from_dependencies(AppDependencies {
+            hydration: Arc::new(SqlxHydrationRepository::new(pool.clone())),
+            workout_sessions: Arc::new(SqlxWorkoutSessionRepository::new(pool.clone())),
             training: Arc::new(SqlxTrainingRepository::new(pool.clone())),
             users: Arc::new(SqlxUserRepository::new(pool)),
             nutrition: nutrition.clone(),
@@ -92,6 +103,8 @@ impl AppState {
     pub fn from_dependencies(deps: AppDependencies) -> Self {
         let goals = GetGoalsUseCase::new(deps.nutrition.clone(), deps.users.clone());
         Self {
+            hydration: Hydration::new(deps.hydration),
+            workout_sessions: WorkoutSessions::new(deps.workout_sessions),
             list_routines_use_case: ListRoutinesUseCase::new(deps.training.clone()),
             save_routine_use_case: SaveRoutineUseCase::new(deps.training.clone()),
             archive_routine_use_case: ArchiveRoutineUseCase::new(deps.training.clone()),

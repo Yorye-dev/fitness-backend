@@ -2,7 +2,7 @@
 
 ## Estado
 
-Las migraciones `0001` a `0007` están aplicadas en el PostgreSQL de desarrollo de Windows.
+Las migraciones `0001` a `0008` están aplicadas en el PostgreSQL de desarrollo de Windows.
 La ejecución se hizo con el arranque del backend y quedó registrada en `_sqlx_migrations`.
 La versión `0001_initial_schema.sql` se conserva sin modificaciones.
 
@@ -14,8 +14,9 @@ La versión `0001_initial_schema.sql` se conserva sin modificaciones.
 | `0005_consumption_portions.sql` | Porciones opcionales, restricciones de peso y ampliación de `consumption_entries`; conserva los valores existentes |
 | `0006_unit_based_foods.sql` | Alimentos y snapshots por unidad, gramos opcionales, restricciones de base y recreación transaccional de totales generados/vistas |
 | `0007_weekly_workout_schedule.sql` | Plan recurrente de lunes a domingo, rutina opcional y propiedad mediante clave foránea compuesta |
+| `0008_daily_workouts_and_water.sql` | Sesiones diarias, revisión, estado de ejercicios, aportes de agua y versiones de objetivo |
 
-El resultado contiene 12 tablas de negocio en `public`, 3 tablas históricas en `legacy`, las vistas
+El resultado contiene 14 tablas de negocio en `public`, 3 tablas históricas en `legacy`, las vistas
 `consumption_entries` / `daily_nutrition_totals` y la tabla interna `_sqlx_migrations`.
 
 ## Actualización en Windows, Linux o Raspberry
@@ -62,8 +63,8 @@ eliminado ningún volumen ni se han creado cuentas o alimentos de ejemplo en el 
   estimado a partir del perfil del contrato anterior; esa estimación no es un dato histórico guardado.
 - La persistencia usa NUMERIC. Los adaptadores conservan el f32 existente de dominio/DTO mediante
   conversiones explícitas; cambiar todo el dominio a tipos decimales es una tarea posterior.
-- Las rutinas y el plan semanal tienen casos de uso y rutas bajo `/api/training`. Las tablas para
-  sesiones y series están preparadas; sus operaciones se implementarán en el siguiente caso de uso.
+- Las rutinas, el plan semanal y el registro de sesiones/series tienen rutas bajo `/api/training`.
+  El agua utiliza `/api/water`; conserva objetivos por fecha y aportes individuales.
 
 ## Copia previa y recuperación
 
@@ -116,3 +117,15 @@ de prueba en la base del usuario. Queda pendiente comprobar el flujo completo de
 La migración añade únicamente la tabla de planificación semanal y sus restricciones, índice y
 trigger; no modifica rutinas o sesiones existentes ni precarga ejercicios. Los días sin asignación
 se devuelven como descanso o sin planificar. Las migraciones ya aplicadas se mantienen intactas.
+
+### Actualización 0008
+
+`cargo fmt --check`, `cargo check --all-targets --locked`, Clippy con `-D warnings` y compilación
+del backend correctos. El frontal compila con TypeScript/Vite y pasa Oxlint. La versión 8 figura con
+`success = true` y los tres servicios locales están saludables. No se han ejecutado tests ni creado
+entrenamientos o aportes de prueba en la base del usuario; la interacción completa sigue pendiente.
+No se ha actualizado la Raspberry.
+
+Se añaden columnas a las tablas de entrenamiento existentes y dos tablas de agua. La marca `is_daily`
+se inicializa a `false` en sesiones anteriores, por lo que el índice único de la home no restringe
+otras sesiones existentes. Las migraciones previas no se modifican y no se borran datos.

@@ -1,8 +1,13 @@
-use crate::{
-    domain::training::routine::{RoutineExercise, WeeklyDay, WorkoutRoutine},
-    presentation::errors::api_error::ApiError,
-};
-use chrono::NaiveDate;
+pub use super::date::DateQuery as TrainingDateQuery;
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProgressQuery {
+    pub from: String,
+    pub to: String,
+    pub exercise_id: Option<uuid::Uuid>,
+}
+use crate::domain::training::routine::{RoutineExercise, WeeklyDay, WorkoutRoutine};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -72,22 +77,5 @@ impl WeeklyScheduleRequest {
                 routine_id: d.routine_id,
             })
             .collect()
-    }
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TrainingDateQuery {
-    pub date: String,
-}
-impl TrainingDateQuery {
-    pub fn parsed_date(&self) -> Result<NaiveDate, ApiError> {
-        let date = NaiveDate::parse_from_str(&self.date, "%Y-%m-%d")
-            .map_err(|_| ApiError::Validation("date must be a valid YYYY-MM-DD date".into()))?;
-        if self.date.len() != 10 || date.format("%Y-%m-%d").to_string() != self.date {
-            return Err(ApiError::Validation(
-                "date must be a valid YYYY-MM-DD date".into(),
-            ));
-        }
-        Ok(date)
     }
 }

@@ -1,6 +1,6 @@
 -- Fitness: modelo objetivo para PostgreSQL 17.
 -- DDL de referencia del modelo activo para una BASE VACIA.
--- El backend se instala/actualiza con migrations/0001..0007, no ejecutando este archivo.
+-- El backend se instala/actualiza con migrations/0001..0008, no ejecutando este archivo.
 -- La migracion 0003 conserva ademas las tablas anteriores en legacy y las integra en las vistas.
 -- Sin datos de ejemplo, extensiones ni instrucciones de borrado.
 BEGIN;
@@ -228,6 +228,10 @@ CREATE TABLE workout_sessions (
     started_at TIMESTAMPTZ NOT NULL CHECK (isfinite(started_at)),
     finished_at TIMESTAMPTZ CHECK (isfinite(finished_at)),
     status TEXT NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'cancelled')),
+    is_daily BOOLEAN NOT NULL DEFAULT false,
+    time_is_estimated BOOLEAN NOT NULL DEFAULT false,
+    revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    last_write_id UUID,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -239,6 +243,7 @@ CREATE TABLE workout_sessions (
 );
 CREATE INDEX workout_sessions_user_date_idx ON workout_sessions(user_id, local_date, started_at, id);
 CREATE INDEX workout_sessions_routine_idx ON workout_sessions(user_id, routine_id);
+CREATE UNIQUE INDEX workout_sessions_daily_slot_idx ON workout_sessions(user_id, local_date) WHERE is_daily;
 
 -- Copia de la prescripcion al iniciar la sesion; no depende de futuras ediciones de la rutina.
 -- Los objetivos son opcionales para ejercicios agregados durante un entrenamiento libre.
@@ -250,6 +255,7 @@ CREATE TABLE session_exercises (
     position INTEGER NOT NULL CHECK (position > 0),
     exercise_name_snapshot TEXT NOT NULL CHECK (char_length(btrim(exercise_name_snapshot)) BETWEEN 1 AND 200),
     modality_snapshot TEXT NOT NULL CHECK (modality_snapshot IN ('strength', 'cardio', 'mobility')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'skipped')),
     target_sets SMALLINT CHECK (target_sets > 0),
     target_reps_min SMALLINT CHECK (target_reps_min > 0),
     target_reps_max SMALLINT CHECK (target_reps_max > 0),
@@ -333,6 +339,25 @@ CREATE TABLE weekly_workout_schedule (
 );
 CREATE INDEX weekly_workout_schedule_routine_idx ON weekly_workout_schedule(user_id, routine_id);
 CREATE TRIGGER weekly_workout_schedule_updated_at BEFORE UPDATE ON weekly_workout_schedule
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+CREATE TABLE water_goal_versions (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    effective_from DATE NOT NULL CHECK (isfinite(effective_from)),
+    goal_ml INTEGER NOT NULL CHECK (goal_ml BETWEEN 100 AND 10000),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, effective_from)
+);
+CREATE TABLE water_intakes (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    local_date DATE NOT NULL CHECK (isfinite(local_date)),
+    amount_ml INTEGER NOT NULL CHECK (amount_ml BETWEEN 1 AND 5000),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ
+);
+CREATE INDEX water_intakes_daily_idx ON water_intakes(user_id, local_date, created_at, id) WHERE deleted_at IS NULL;
+CREATE TRIGGER water_goal_versions_updated_at BEFORE UPDATE ON water_goal_versions
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 COMMIT;

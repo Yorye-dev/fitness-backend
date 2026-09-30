@@ -70,6 +70,7 @@ impl From<Vec<WeeklyDay>> for WeeklyScheduleResponse {
 }
 #[derive(Serialize)]
 pub struct DailyWorkoutResponse {
+    pub session: Option<super::daily_tracking::SessionResponse>,
     pub date: String,
     pub weekday: u32,
     pub routine: Option<RoutineResponse>,

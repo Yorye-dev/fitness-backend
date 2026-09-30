@@ -18,6 +18,22 @@ use axum::{
 use chrono::Datelike;
 use uuid::Uuid;
 
+pub async fn progress(
+    State(state): State<AppState>,
+    Extension(user): Extension<AuthenticatedUser>,
+    ApiQuery(query): ApiQuery<crate::presentation::dto::request::training::ProgressQuery>,
+) -> Result<Response, ApiError> {
+    let from = TrainingDateQuery { date: query.from }.parsed_date()?;
+    let to = TrainingDateQuery { date: query.to }.parsed_date()?;
+    let data = state
+        .workout_sessions
+        .progress(user.user_id, from, to, query.exercise_id)
+        .await?;
+    Ok(ResponseFactory::ok(
+        crate::presentation::dto::response::training_progress::WorkoutProgressResponse::from(data),
+    ))
+}
+
 pub async fn list(
     State(state): State<AppState>,
     Extension(user): Extension<AuthenticatedUser>,
@@ -87,6 +103,11 @@ pub async fn daily(
         .execute(user.user_id, date)
         .await?;
     Ok(ResponseFactory::ok(DailyWorkoutResponse {
+        session: state
+            .workout_sessions
+            .daily(user.user_id, date)
+            .await?
+            .map(Into::into),
         date: query.date,
         weekday: date.weekday().number_from_monday(),
         routine: routine.map(Into::into),

@@ -1,15 +1,15 @@
 # Esquema de Fitness
 
-**PostgreSQL 17 · Implementado mediante migraciones 0001–0007.**
+**PostgreSQL 17 · Implementado mediante migraciones 0001–0008.**
 
-El modelo tiene 12 tablas activas, vistas de consumo, claves foráneas, restricciones, índices
+El modelo tiene 14 tablas activas, vistas de consumo, claves foráneas, restricciones, índices
 y actualización automática de `updated_at`. El [DDL de referencia](schema.sql) describe el modelo
 para una base vacía. La fuente de instalación y actualización es la carpeta `migrations/`.
 
 Las migraciones se han aplicado al PostgreSQL local mediante SQLx. El backend utiliza las nuevas
 tablas nutricionales. Las tres tablas anteriores se conservan en el esquema `legacy`, y la vista
 `consumption_entries` unifica ingestas antiguas y nuevas. Las rutinas y su planificación semanal
-tienen casos de uso y rutas; las operaciones de sesiones y series realizadas siguen pendientes.
+tienen casos de uso y rutas, junto al registro diario de sesiones, series y consumo de agua.
 
 Consulta el [procedimiento de migración](migrations.md), las decisiones de compatibilidad y las
 comprobaciones realizadas. La Raspberry no se ha conectado ni actualizado en esta sesión.
@@ -282,9 +282,8 @@ rutina deja sus asignaciones a `NULL` en la misma transacción. La clave foráne
 asignar rutinas ajenas. El plan representa la semana actual recurrente y no guarda versiones
 históricas; la home consulta su asignación para el día de la semana de la fecha seleccionada.
 
-El siguiente caso de uso será registrar sesiones. Al iniciar una sesión desde una rutina, deberá
-usarse una transacción para copiar su nombre y la prescripción a las
-tablas de sesión. También puede crear las series pendientes. Las ediciones posteriores de la
+Al iniciar una sesión desde una rutina, una transacción copia su nombre y la prescripción a las
+tablas de sesión y crea sus series pendientes. Las ediciones posteriores de la
 rutina no alteran esa copia. Este primer diseño prescribe el mismo rango/carga para las series
 de un ejercicio; una prescripción distinta para cada serie puede añadirse después con una tabla específica.
 
@@ -296,6 +295,18 @@ Las series completadas exigen una fecha de finalización y al menos repeticiones
 Al terminar una sesión, el caso de uso decide cómo resolver las series pendientes y verifica que las
 fechas y las métricas sean coherentes con la modalidad. Las restricciones entre varias filas no se
 resuelven con un `CHECK` de una sola fila.
+
+La home utiliza una sesión diaria por usuario/fecha (`is_daily`), con control de revisión al guardar.
+Los ejercicios tienen estado pendiente, completado o no realizado; solo las series completadas
+deben sumarse al rendimiento real. El registro completo y las correcciones se guardan atómicamente.
+
+### Agua
+
+`water_intakes` guarda cada aporte entero en ml con su usuario, fecha y UUID; deshacer conserva
+una marca de borrado para que un reintento no reactive el aporte. `water_goal_versions` guarda el
+objetivo vigente desde una fecha, hasta el siguiente cambio. Sin versión aplicable se usan 2000 ml.
+Las consultas históricas deben sumar aportes activos y obtener el objetivo vigente para cada día.
+Consulta [registro diario y estadísticas futuras](daily-tracking.md), incluidos días sin consumo.
 
 ## 3. Integridad, propiedad e índices
 

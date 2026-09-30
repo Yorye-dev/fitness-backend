@@ -243,7 +243,32 @@ Los cambios de rutinas y semana se guardan en transacciones, serializadas por us
 asignar una rutina mientras se archiva. Reenviar el PUT con el mismo UUID y contenido conserva una
 sola rutina. Las ediciones concurrentes conservan el último guardado. Las consultas usan filtros de
 propiedad y las claves foráneas incluyen `user_id`. Archivar conserva posibles sesiones anteriores.
-El registro de sesiones y series realizadas sigue pendiente; las métricas actuales son objetivos.
+La home ya registra sesiones y resultados reales por serie, separados de estos objetivos.
+
+## Registro diario: entrenamientos y agua
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| POST | `/api/training/sessions` | Iniciar o recuperar la sesión de una fecha (`date`, `routine_id`) |
+| PUT | `/api/training/sessions/{id}` | Guardar progreso, completar o corregir (`revision`, `write_id`, `complete`, `exercises`) |
+| GET | `/api/training/daily?date=YYYY-MM-DD` | Rutina planificada y sesión histórica si ya existe |
+| GET | `/api/water/daily?date=YYYY-MM-DD` | Aportes, total en ml y objetivo vigente de la fecha |
+| POST | `/api/water/intakes` | Registrar un aporte (`id`, `date`, `amount_ml`) |
+| DELETE | `/api/water/intakes/{id}` | Deshacer un aporte propio |
+| PUT | `/api/water/goal` | Objetivo desde una fecha (`date`, `goal_ml`) |
+
+La sesión conserva los identificadores y nombres de los ejercicios y sus objetivos al iniciarla.
+Cada ejercicio guarda su estado; cada serie guarda peso, repeticiones o duración reales. Las series
+no realizadas guardan sus métricas a `NULL`. Se permite guardar avances y corregir sesiones completas.
+Los objetivos de agua se versionan por fecha; el valor inicial sin configuración es 2000 ml.
+
+`GET /api/training/progress?from=YYYY-MM-DD&to=YYYY-MM-DD&exercise_id=UUID` ofrece el progreso de
+entrenamiento: sesiones completadas, ejercicios disponibles y evolución por sesión del seleccionado.
+Admite hasta 366 días inclusivos; el ejercicio es opcional. Las agregaciones excluyen sesiones,
+ejercicios y series pendientes o no realizados. No requiere nuevas migraciones después de `0008`.
+
+Los datos e índices también permiten ampliar las estadísticas de agua. Consulta el
+[contrato y las reglas del registro diario](docs/database/daily-tracking.md) antes de agregar métricas.
 
 ## Comprobaciones
 
@@ -302,13 +327,14 @@ Las migraciones activas son:
 | 0005 | Porciones opcionales en ingestas nuevas e históricas, y ampliación de la vista de lectura |
 | 0006 | Catálogo y snapshots por unidad, gramos opcionales y consumos generados según la base |
 | 0007 | Plan semanal recurrente por usuario, con una rutina opcional por día |
+| 0008 | Sesiones diarias con revisión y estados por ejercicio; aportes y objetivos de agua |
 
 El backend aplica las migraciones pendientes al arrancar, tanto en Windows/Linux como en Raspberry.
 Se registra cada versión y su checksum en `_sqlx_migrations`. El [DDL de referencia](docs/database/schema.sql)
 sirve para leer el modelo; la instalación y la actualización del backend utilizan `migrations/`.
 
 Las escrituras actuales ya usan el nuevo esquema nutricional. Entrenamiento permite gestionar
-rutinas y su planificación semanal; el registro de sesiones y series se desarrollará después. PostgreSQL almacena los
+rutinas, planificación semanal, sesiones y series reales. El agua guarda aportes y objetivos por fecha. PostgreSQL almacena los
 decimales y calcula los consumos con `NUMERIC`; los adaptadores mantienen por compatibilidad los
 tipos `f32` actuales de nutrientes; cantidades y porciones se exponen como `f64`. La conversión completa del dominio a decimales queda separada
 de esta actualización de esquema.
