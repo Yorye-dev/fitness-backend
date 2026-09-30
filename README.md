@@ -91,9 +91,12 @@ Todas las respuestas con contenido utilizan uno de estos contratos:
 | GET | /api/nutrition/daily?date=YYYY-MM-DD | Consultar ingestas y objetivos del día |
 | GET | /api/nutrition/goals | Consultar objetivos nutricionales |
 | PUT | /api/nutrition/goals | Establecer objetivos nutricionales personalizados |
-| GET | /api/nutrition/meals?page=1&per_page=20 | Listar alimentos propios |
+| GET | /api/nutrition/meals?page=1&per_page=20&q=arroz | Listar y buscar alimentos propios |
 | POST | /api/nutrition/meals | Crear alimento |
 | GET / PUT / DELETE | /api/nutrition/meals/{id} | Consultar, editar o eliminar alimento propio |
+| POST | /api/nutrition/consumptions | Registrar una ingesta propia por gramos o porciones y fecha |
+| PUT | /api/nutrition/consumptions/{id} | Editar cantidad, porciones o fecha de una ingesta propia |
+| DELETE | /api/nutrition/consumptions/{id} | Eliminar una ingesta propia y descontarla del día |
 | GET | /health/ready | Comprobar disponibilidad de PostgreSQL, 204 o 503 |
 
 El árbol /api requiere Authorization: Bearer <token>. Auth y readiness son públicos.
@@ -117,6 +120,130 @@ Eliminar un alimento lo archiva: las ingestas anteriores conservan su nombre y n
 Los objetivos se guardan por fecha y el resumen busca la versión vigente en el día solicitado.
 Si no existe una versión para ese día, se conserva el cálculo estimado desde el perfil que ya
 ofrecía la API; no debe interpretarse como un objetivo histórico registrado.
+
+## Comidas reutilizables e ingestas
+
+Crear una comida en `/api/nutrition/meals` guarda su nombre y nutrientes **por 100 g o por unidad** en el catálogo
+personal; no suma consumo. Cada uso se registra en `/api/nutrition/consumptions` con un UUID nuevo:
+
+```json
+{
+  "id": "891ced7e-d7a7-41ea-8b4c-a387055ffdef",
+  "meal_id": "a765c563-8ba1-4556-909f-1e84b577f1ee",
+  "date": "2026-09-30",
+  "quantity_grams": 150
+}
+```
+
+`meal_id` debe identificar una comida propia y activa. El usuario se obtiene del access token.
+Se admite una fecha real `YYYY-MM-DD` y una cantidad finita entre 0,001 y 1.000.000 g; PostgreSQL
+almacena gramos con tres decimales. El cliente no puede enviar totales de nutrientes ni `user_id`.
+
+La operación copia nombre y nutrientes al registro, y PostgreSQL genera cada aporte como
+`cantidad_en_gramos × valor_por_100g / 100`. El resumen suma las ingestas de la fecha y mantiene
+los objetivos separados: **restante = objetivo − consumido**. Eliminar una ingesta actualiza el
+consumo; editar o archivar una comida no modifica las ingestas anteriores.
+
+El `id` identifica una ingesta, no la comida del catálogo. Mientras la ingesta exista, repetir el
+mismo `id`, usuario, fecha, comida y cantidad devuelve el registro existente sin duplicar totales
+(201). Cambiar sus datos con el mismo `id` devuelve 409. Se serializan los reintentos concurrentes
+mediante un bloqueo transaccional. Una ingesta nueva necesita un UUID nuevo, aunque se repita comida.
+La eliminación no mantiene una reserva del UUID: un POST posterior puede volver a crearlo.
+
+La búsqueda `q` se aplica al nombre, sin distinguir mayúsculas/minúsculas, sobre el catálogo propio
+no archivado, antes de paginar. Su longitud máxima es 200 caracteres; no admite comodines.
+### Editar ingestas y registrar porciones
+
+`PUT /api/nutrition/consumptions/{id}` recibe la fecha y la cantidad completa que sustituirán a las
+actuales. No cambia el alimento del catálogo ni los valores nutricionales originales. Puede corregir
+ingestas de hoy o de cualquier día anterior, también si el alimento se ha archivado.
+
+Tanto POST como PUT aceptan **una** de estas formas de cantidad:
+
+- `quantity_grams`: gramos totales, entre 0.001 y 1000000 y hasta tres decimales.
+- `portion_count` y `portion_grams`: unidades (admite fracciones) y gramos por unidad, con los mismos
+  límites individuales. El servidor multiplica ambos y redondea el peso total a 0.001 g. El total
+  también debe estar entre 0.001 y 1000000 g. No enviar `quantity_grams` junto con las porciones.
+- Solo `portion_count`: para comidas guardadas por unidad. No enviar gramos; se admiten fracciones
+  y el mismo intervalo de 0.001 a 1000000, con tres decimales.
+
+Por ejemplo, el cuerpo de un PUT para dos galletas de 29 g es:
+
+```json
+{ "date": "2026-09-30", "portion_count": 2, "portion_grams": 29 }
+```
+
+La respuesta contiene 58 g y conserva las dos propiedades de porción. POST añade a ese cuerpo `id`
+y `meal_id`. Los registros por gramos devuelven las propiedades de porción como `null`.
+
+Las modificaciones se realizan en una transacción y se filtran por usuario. Mover una ingesta
+recalcula los días de origen y destino sin mover otros alimentos que compartan su cabecera.
+Los nutrientes se recalculan desde el snapshot; en entradas `legacy`, desde la proporción de los
+totales históricos (con su precisión original REAL). Nunca se usan los nutrientes actuales del
+catálogo para reescribir el pasado. Los PUT repetidos con los mismos datos no suman nuevas ingestas;
+si hay ediciones simultáneas se conserva la última escritura, sin control de versión optimista.
+
+La migración `0005_consumption_portions.sql` añade las porciones opcionales y sus restricciones,
+sin alterar los valores de las ingestas existentes. Se aplica automáticamente al arrancar.
+
+### Comidas por unidad (batidos, platos o envases completos)
+
+El catálogo admite `nutrition_basis: "per_unit"` y nutrientes de una unidad completa:
+
+```json
+{
+  "name": "Batido de proteínas",
+  "nutrition_basis": "per_unit",
+  "calories_per_unit": 150,
+  "protein_per_unit": 25,
+  "carbs_per_unit": 7,
+  "fat_per_unit": 2
+}
+```
+
+Son valores ilustrativos, que debe sustituir el usuario por los de su batido. Para consumirlo,
+POST envía `id`, `meal_id`, `date` y `portion_count: 1`. PUT conserva el contrato sin los dos UUID
+del cuerpo. No se necesitan gramos: los nutrientes se calculan como unidades × valor por unidad.
+En estas ingestas `quantity_grams` y `portion_grams` son `null`; el historial muestra unidades.
+
+El contrato anterior `*_per_100g` sigue disponible, con `nutrition_basis: "per_100g"` o sin ese campo.
+Los cuatro nutrientes deben corresponder a la base elegida; las respuestas incluyen ambas familias
+y la que no se utiliza vale `null`. El modo por 100 g limita macros a 100 g; por unidad admite hasta
+menos de 100000 g (una comida completa puede contener más de 100 g de un macro).
+
+La migración `0006_unit_based_foods.sql` conserva la base y los nutrientes como snapshot en cada
+ingesta. Editar una comida o cambiar su base no convierte ni recalcula registros anteriores.
+Una petición de cantidad incompatible con la base actual (o con el snapshot al editar) devuelve 409.
+Los alimentos y las ingestas existentes mantienen su base por 100 g.
+
+## Rutinas y planificación semanal
+
+Las rutas de entrenamiento requieren un access token y operan sobre los datos de su usuario:
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| GET | `/api/training/routines` | Listar rutinas activas con sus ejercicios ordenados |
+| PUT | `/api/training/routines/{id}` | Crear o reemplazar una rutina con UUID del cliente |
+| DELETE | `/api/training/routines/{id}` | Archivar una rutina y liberar sus asignaciones semanales |
+| GET / PUT | `/api/training/week` | Consultar o reemplazar la semana recurrente |
+| GET | `/api/training/daily?date=YYYY-MM-DD` | Obtener la rutina del día de la semana correspondiente |
+
+Las respuestas usan `{ data: ... }`; DELETE responde 204. La semana tiene siete entradas en `days`,
+con `weekday` de 1 (lunes) a 7 (domingo) y `routine_id` propio y activo o `null` para descanso.
+Una rutina puede asignarse a varios días. El plan actual no está versionado por fechas: consultar
+una fecha pasada devuelve la asignación semanal vigente, no un entrenamiento realizado.
+
+El cuerpo de rutina contiene `name`, `description` y `exercises`. Cada ejercicio incluye nombre,
+modalidad (`strength`, `cardio` o `mobility`), series, descanso y notas. Fuerza requiere un rango de
+repeticiones y admite carga opcional; cardio y movilidad requieren duración y excluyen carga y
+repeticiones. El dominio valida límites, valores finitos y compatibilidad de métricas. Se permiten
+hasta 100 rutinas activas por usuario y entre 1 y 50 ejercicios por rutina.
+
+Los cambios de rutinas y semana se guardan en transacciones, serializadas por usuario para evitar
+asignar una rutina mientras se archiva. Reenviar el PUT con el mismo UUID y contenido conserva una
+sola rutina. Las ediciones concurrentes conservan el último guardado. Las consultas usan filtros de
+propiedad y las claves foráneas incluyen `user_id`. Archivar conserva posibles sesiones anteriores.
+El registro de sesiones y series realizadas sigue pendiente; las métricas actuales son objetivos.
 
 ## Comprobaciones
 
@@ -172,15 +299,18 @@ Las migraciones activas son:
 | 0002 | Restricciones de usuario, zona horaria, timestamps y catálogo `foods` |
 | 0003 | Diario, versiones de objetivos y conservación del esquema antiguo en `legacy` |
 | 0004 | Ejercicios, rutinas, sesiones y series de entrenamiento |
+| 0005 | Porciones opcionales en ingestas nuevas e históricas, y ampliación de la vista de lectura |
+| 0006 | Catálogo y snapshots por unidad, gramos opcionales y consumos generados según la base |
+| 0007 | Plan semanal recurrente por usuario, con una rutina opcional por día |
 
 El backend aplica las migraciones pendientes al arrancar, tanto en Windows/Linux como en Raspberry.
 Se registra cada versión y su checksum en `_sqlx_migrations`. El [DDL de referencia](docs/database/schema.sql)
 sirve para leer el modelo; la instalación y la actualización del backend utilizan `migrations/`.
 
-Las escrituras actuales ya usan el nuevo esquema nutricional. Las tablas de entrenamiento están
-preparadas; sus casos de uso y endpoints se desarrollarán por separado. PostgreSQL almacena los
+Las escrituras actuales ya usan el nuevo esquema nutricional. Entrenamiento permite gestionar
+rutinas y su planificación semanal; el registro de sesiones y series se desarrollará después. PostgreSQL almacena los
 decimales y calcula los consumos con `NUMERIC`; los adaptadores mantienen por compatibilidad los
-tipos `f32` actuales de aplicación/DTO. La conversión completa del dominio a decimales queda separada
+tipos `f32` actuales de nutrientes; cantidades y porciones se exponen como `f64`. La conversión completa del dominio a decimales queda separada
 de esta actualización de esquema.
 
 Los datos antiguos se mantienen en `legacy` y se consultan junto a los nuevos a través de

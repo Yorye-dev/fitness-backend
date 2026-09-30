@@ -1,5 +1,5 @@
 use crate::domain::errors::RepositoryError;
-use crate::domain::nutrition::consumption::DailyConsumption;
+use crate::domain::nutrition::consumption::{ConsumptionQuantity, DailyConsumption};
 use crate::domain::nutrition::goals::NutritionGoals;
 use crate::domain::nutrition::meal::Meal;
 use async_trait::async_trait;
@@ -47,6 +47,7 @@ pub trait MealRepository: Send + Sync {
         user_id: &Uuid,
         page: u32,
         per_page: u32,
+        search: Option<&str>,
     ) -> Result<(Vec<Meal>, i64), RepositoryError>;
     async fn delete_meal(&self, meal_id: &Uuid, user_id: &Uuid) -> Result<bool, RepositoryError>;
 }
@@ -63,6 +64,13 @@ pub struct ConsumptionWithMeal {
 
 #[async_trait]
 pub trait ConsumptionRepository: Send + Sync {
+    async fn update_consumption(
+        &self,
+        consumption_id: &Uuid,
+        user_id: &Uuid,
+        date: &NaiveDate,
+        quantity: &ConsumptionQuantity,
+    ) -> Result<Option<DailyConsumption>, RepositoryError>;
     async fn log_consumption(
         &self,
         consumption: &DailyConsumption,

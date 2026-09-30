@@ -1,4 +1,5 @@
 pub mod nutrition;
+pub mod training;
 pub mod user;
 
 use crate::{
@@ -11,6 +12,7 @@ pub fn routes(state: AppState) -> Router<AppState> {
     Router::new()
         .merge(user::routes())
         .nest("/nutrition", nutrition::routes())
+        .nest("/training", training::routes())
         .fallback(|| async { ApiError::NotFound })
         .layer(middleware::from_fn_with_state(
             state,

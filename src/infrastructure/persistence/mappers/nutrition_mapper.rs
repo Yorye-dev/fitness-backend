@@ -1,7 +1,7 @@
 use crate::domain::nutrition::{
     consumption::DailyConsumption,
     goals::NutritionGoals,
-    meal::Meal,
+    meal::{Meal, NutritionBasis},
     repository::{ConsumptionWithMeal, StatsSummary},
 };
 use crate::infrastructure::persistence::models::nutrition_row::*;
@@ -25,10 +25,15 @@ impl From<MealRow> for Meal {
             id: row.id,
             user_id: row.user_id,
             name: row.name,
-            calories_per_100g: row.calories_per_100g,
-            protein_per_100g: row.protein_per_100g,
-            carbs_per_100g: row.carbs_per_100g,
-            fat_per_100g: row.fat_per_100g,
+            nutrition_basis: if row.per_unit {
+                NutritionBasis::PerUnit
+            } else {
+                NutritionBasis::Per100g
+            },
+            calories: row.calories,
+            protein: row.protein,
+            carbs: row.carbs,
+            fat: row.fat,
         }
     }
 }
@@ -40,6 +45,8 @@ impl From<ConsumptionRow> for DailyConsumption {
             date: row.date,
             meal_id: row.meal_id,
             quantity_grams: row.quantity_grams,
+            portion_count: row.portion_count,
+            portion_grams: row.portion_grams,
             calories_consumed: row.calories_consumed,
             protein_consumed: row.protein_consumed,
             carbs_consumed: row.carbs_consumed,
@@ -52,10 +59,10 @@ impl From<ConsumptionWithMealRow> for ConsumptionWithMeal {
         Self {
             consumption: row.consumption.into(),
             meal_name: row.meal_name,
-            meal_calories: row.calories_per_100g,
-            meal_protein: row.protein_per_100g,
-            meal_carbs: row.carbs_per_100g,
-            meal_fat: row.fat_per_100g,
+            meal_calories: row.meal_calories,
+            meal_protein: row.meal_protein,
+            meal_carbs: row.meal_carbs,
+            meal_fat: row.meal_fat,
         }
     }
 }

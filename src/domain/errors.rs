@@ -6,6 +6,8 @@ pub enum DomainError {
     UserNotFound,
     #[error("meal not found")]
     MealNotFound,
+    #[error("consumption not found")]
+    ConsumptionNotFound,
     #[error("nutrition goals not found")]
     NutritionGoalsNotFound,
     #[error("invalid credentials")]

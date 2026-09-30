@@ -98,10 +98,11 @@ async fn persistence_handles_empty_stats_pagination_and_ownership(pool: PgPool) 
             id: Uuid::new_v4(),
             user_id: alice.id,
             name: "Test".into(),
-            calories_per_100g: 100.0,
-            protein_per_100g: 10.0,
-            carbs_per_100g: 10.0,
-            fat_per_100g: 2.0,
+            nutrition_basis: fitness_backend::domain::nutrition::meal::NutritionBasis::Per100g,
+            calories: 100.0,
+            protein: 10.0,
+            carbs: 10.0,
+            fat: 2.0,
         })
         .await
         .unwrap();
@@ -110,7 +111,9 @@ async fn persistence_handles_empty_stats_pagination_and_ownership(pool: PgPool) 
         user_id: alice.id,
         date,
         meal_id: meal.id,
-        quantity_grams: 100.0,
+        quantity_grams: Some(100.0),
+        portion_count: None,
+        portion_grams: None,
         calories_consumed: 100.0,
         protein_consumed: 10.0,
         carbs_consumed: 10.0,

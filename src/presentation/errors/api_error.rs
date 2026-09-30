@@ -19,6 +19,7 @@ pub enum ApiError {
     InvalidToken,
     UserNotFound,
     MealNotFound,
+    ConsumptionNotFound,
     NutritionGoalsNotFound,
     NotFound,
     MethodNotAllowed,
@@ -58,6 +59,11 @@ impl ApiError {
             ),
             Self::UserNotFound => (StatusCode::NOT_FOUND, "USER_NOT_FOUND", "User not found"),
             Self::MealNotFound => (StatusCode::NOT_FOUND, "MEAL_NOT_FOUND", "Meal not found"),
+            Self::ConsumptionNotFound => (
+                StatusCode::NOT_FOUND,
+                "CONSUMPTION_NOT_FOUND",
+                "Consumption not found",
+            ),
             Self::NutritionGoalsNotFound => (
                 StatusCode::NOT_FOUND,
                 "NUTRITION_GOALS_NOT_FOUND",
@@ -112,6 +118,7 @@ impl From<ApplicationError> for ApiError {
             ApplicationError::Domain(error) => match error {
                 DomainError::UserNotFound => Self::UserNotFound,
                 DomainError::MealNotFound => Self::MealNotFound,
+                DomainError::ConsumptionNotFound => Self::ConsumptionNotFound,
                 DomainError::NutritionGoalsNotFound => Self::NutritionGoalsNotFound,
                 DomainError::InvalidCredentials => Self::InvalidCredentials,
                 DomainError::Validation(message) => Self::Validation(message),

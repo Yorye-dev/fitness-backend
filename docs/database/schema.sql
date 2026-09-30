@@ -1,6 +1,6 @@
 -- Fitness: modelo objetivo para PostgreSQL 17.
 -- DDL de referencia del modelo activo para una BASE VACIA.
--- El backend se instala/actualiza con migrations/0001..0004, no ejecutando este archivo.
+-- El backend se instala/actualiza con migrations/0001..0007, no ejecutando este archivo.
 -- La migracion 0003 conserva ademas las tablas anteriores en legacy y las integra en las vistas.
 -- Sin datos de ejemplo, extensiones ni instrucciones de borrado.
 BEGIN;
@@ -35,11 +35,20 @@ CREATE TABLE foods (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 200),
     brand TEXT,
-    calories_per_100g NUMERIC(8,3) NOT NULL
+    nutrition_basis TEXT NOT NULL DEFAULT 'per_100g' CHECK (nutrition_basis IN ('per_100g', 'per_unit')),
+    calories_per_100g NUMERIC(8,3)
         CHECK (calories_per_100g >= 0 AND calories_per_100g < 'Infinity'::NUMERIC),
-    protein_per_100g NUMERIC(8,3) NOT NULL CHECK (protein_per_100g BETWEEN 0 AND 100),
-    carbs_per_100g NUMERIC(8,3) NOT NULL CHECK (carbs_per_100g BETWEEN 0 AND 100),
-    fat_per_100g NUMERIC(8,3) NOT NULL CHECK (fat_per_100g BETWEEN 0 AND 100),
+    protein_per_100g NUMERIC(8,3) CHECK (protein_per_100g BETWEEN 0 AND 100),
+    carbs_per_100g NUMERIC(8,3) CHECK (carbs_per_100g BETWEEN 0 AND 100),
+    fat_per_100g NUMERIC(8,3) CHECK (fat_per_100g BETWEEN 0 AND 100),
+    calories_per_unit NUMERIC(8,3) CHECK (calories_per_unit >= 0 AND calories_per_unit < 'Infinity'::NUMERIC),
+    protein_per_unit NUMERIC(8,3) CHECK (protein_per_unit >= 0 AND protein_per_unit < 'Infinity'::NUMERIC),
+    carbs_per_unit NUMERIC(8,3) CHECK (carbs_per_unit >= 0 AND carbs_per_unit < 'Infinity'::NUMERIC),
+    fat_per_unit NUMERIC(8,3) CHECK (fat_per_unit >= 0 AND fat_per_unit < 'Infinity'::NUMERIC),
+    CONSTRAINT foods_nutrition_values_check CHECK (
+        (nutrition_basis='per_100g' AND calories_per_100g IS NOT NULL AND protein_per_100g IS NOT NULL AND carbs_per_100g IS NOT NULL AND fat_per_100g IS NOT NULL AND calories_per_unit IS NULL AND protein_per_unit IS NULL AND carbs_per_unit IS NULL AND fat_per_unit IS NULL)
+        OR (nutrition_basis='per_unit' AND calories_per_unit IS NOT NULL AND protein_per_unit IS NOT NULL AND carbs_per_unit IS NOT NULL AND fat_per_unit IS NOT NULL AND calories_per_100g IS NULL AND protein_per_100g IS NULL AND carbs_per_100g IS NULL AND fat_per_100g IS NULL)
+    ),
     archived_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -95,22 +104,44 @@ CREATE TABLE meal_log_items (
     meal_log_id UUID NOT NULL,
     food_id UUID NOT NULL,
     position INTEGER NOT NULL CHECK (position > 0),
-    quantity_grams NUMERIC(10,3) NOT NULL
+    nutrition_basis TEXT NOT NULL DEFAULT 'per_100g' CHECK (nutrition_basis IN ('per_100g', 'per_unit')),
+    quantity_grams NUMERIC(10,3)
         CHECK (quantity_grams > 0 AND quantity_grams < 'Infinity'::NUMERIC),
+    portion_count NUMERIC(10,3),
+    portion_grams NUMERIC(10,3),
     food_name_snapshot TEXT NOT NULL CHECK (char_length(btrim(food_name_snapshot)) BETWEEN 1 AND 200),
-    calories_per_100g_snapshot NUMERIC(8,3) NOT NULL
+    calories_per_100g_snapshot NUMERIC(8,3)
         CHECK (calories_per_100g_snapshot >= 0 AND calories_per_100g_snapshot < 'Infinity'::NUMERIC),
-    protein_per_100g_snapshot NUMERIC(8,3) NOT NULL CHECK (protein_per_100g_snapshot BETWEEN 0 AND 100),
-    carbs_per_100g_snapshot NUMERIC(8,3) NOT NULL CHECK (carbs_per_100g_snapshot BETWEEN 0 AND 100),
-    fat_per_100g_snapshot NUMERIC(8,3) NOT NULL CHECK (fat_per_100g_snapshot BETWEEN 0 AND 100),
+    protein_per_100g_snapshot NUMERIC(8,3) CHECK (protein_per_100g_snapshot BETWEEN 0 AND 100),
+    carbs_per_100g_snapshot NUMERIC(8,3) CHECK (carbs_per_100g_snapshot BETWEEN 0 AND 100),
+    fat_per_100g_snapshot NUMERIC(8,3) CHECK (fat_per_100g_snapshot BETWEEN 0 AND 100),
+    calories_per_unit_snapshot NUMERIC(8,3) CHECK (calories_per_unit_snapshot >= 0 AND calories_per_unit_snapshot < 'Infinity'::NUMERIC),
+    protein_per_unit_snapshot NUMERIC(8,3) CHECK (protein_per_unit_snapshot >= 0 AND protein_per_unit_snapshot < 'Infinity'::NUMERIC),
+    carbs_per_unit_snapshot NUMERIC(8,3) CHECK (carbs_per_unit_snapshot >= 0 AND carbs_per_unit_snapshot < 'Infinity'::NUMERIC),
+    fat_per_unit_snapshot NUMERIC(8,3) CHECK (fat_per_unit_snapshot >= 0 AND fat_per_unit_snapshot < 'Infinity'::NUMERIC),
+    CONSTRAINT meal_log_items_nutrition_values_check CHECK (
+        (nutrition_basis='per_100g' AND quantity_grams IS NOT NULL
+         AND calories_per_100g_snapshot IS NOT NULL AND protein_per_100g_snapshot IS NOT NULL AND carbs_per_100g_snapshot IS NOT NULL AND fat_per_100g_snapshot IS NOT NULL AND calories_per_unit_snapshot IS NULL AND protein_per_unit_snapshot IS NULL AND carbs_per_unit_snapshot IS NULL AND fat_per_unit_snapshot IS NULL
+         AND ((portion_count IS NULL AND portion_grams IS NULL)
+           OR (portion_count IS NOT NULL AND portion_grams IS NOT NULL
+             AND portion_count BETWEEN 0.001 AND 1000000 AND portion_grams BETWEEN 0.001 AND 1000000
+             AND quantity_grams = round(portion_count * portion_grams, 3))))
+        OR (nutrition_basis='per_unit' AND quantity_grams IS NULL AND portion_grams IS NULL
+         AND portion_count IS NOT NULL AND portion_count BETWEEN 0.001 AND 1000000
+         AND calories_per_unit_snapshot IS NOT NULL AND protein_per_unit_snapshot IS NOT NULL AND carbs_per_unit_snapshot IS NOT NULL AND fat_per_unit_snapshot IS NOT NULL AND calories_per_100g_snapshot IS NULL AND protein_per_100g_snapshot IS NULL AND carbs_per_100g_snapshot IS NULL AND fat_per_100g_snapshot IS NULL)
+    ),
     calories_consumed NUMERIC(20,8) GENERATED ALWAYS AS
-        (quantity_grams * calories_per_100g_snapshot * 0.01) STORED,
+        (CASE WHEN nutrition_basis='per_unit' THEN portion_count * calories_per_unit_snapshot
+         ELSE quantity_grams * calories_per_100g_snapshot * 0.01 END) STORED,
     protein_consumed NUMERIC(20,8) GENERATED ALWAYS AS
-        (quantity_grams * protein_per_100g_snapshot * 0.01) STORED,
+        (CASE WHEN nutrition_basis='per_unit' THEN portion_count * protein_per_unit_snapshot
+         ELSE quantity_grams * protein_per_100g_snapshot * 0.01 END) STORED,
     carbs_consumed NUMERIC(20,8) GENERATED ALWAYS AS
-        (quantity_grams * carbs_per_100g_snapshot * 0.01) STORED,
+        (CASE WHEN nutrition_basis='per_unit' THEN portion_count * carbs_per_unit_snapshot
+         ELSE quantity_grams * carbs_per_100g_snapshot * 0.01 END) STORED,
     fat_consumed NUMERIC(20,8) GENERATED ALWAYS AS
-        (quantity_grams * fat_per_100g_snapshot * 0.01) STORED,
+        (CASE WHEN nutrition_basis='per_unit' THEN portion_count * fat_per_unit_snapshot
+         ELSE quantity_grams * fat_per_100g_snapshot * 0.01 END) STORED,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, meal_log_id, position),
@@ -289,6 +320,19 @@ CREATE TRIGGER workout_sessions_updated_at BEFORE UPDATE ON workout_sessions
 CREATE TRIGGER session_exercises_updated_at BEFORE UPDATE ON session_exercises
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 CREATE TRIGGER workout_sets_updated_at BEFORE UPDATE ON workout_sets
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+-- Plan semanal recurrente actual; el historial real se conserva en workout_sessions.
+CREATE TABLE weekly_workout_schedule (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    weekday SMALLINT NOT NULL CHECK (weekday BETWEEN 1 AND 7),
+    routine_id UUID,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, weekday),
+    FOREIGN KEY (user_id, routine_id) REFERENCES workout_routines(user_id, id) ON DELETE NO ACTION
+);
+CREATE INDEX weekly_workout_schedule_routine_idx ON weekly_workout_schedule(user_id, routine_id);
+CREATE TRIGGER weekly_workout_schedule_updated_at BEFORE UPDATE ON weekly_workout_schedule
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 COMMIT;

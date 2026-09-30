@@ -1,15 +1,15 @@
 # Esquema de Fitness
 
-**PostgreSQL 17 · Implementado mediante migraciones 0001–0004.**
+**PostgreSQL 17 · Implementado mediante migraciones 0001–0007.**
 
-El modelo tiene 11 tablas activas, vistas de consumo, claves foráneas, restricciones, índices
+El modelo tiene 12 tablas activas, vistas de consumo, claves foráneas, restricciones, índices
 y actualización automática de `updated_at`. El [DDL de referencia](schema.sql) describe el modelo
 para una base vacía. La fuente de instalación y actualización es la carpeta `migrations/`.
 
 Las migraciones se han aplicado al PostgreSQL local mediante SQLx. El backend utiliza las nuevas
 tablas nutricionales. Las tres tablas anteriores se conservan en el esquema `legacy`, y la vista
-`consumption_entries` unifica ingestas antiguas y nuevas. Las tablas de entrenamiento están creadas;
-sus casos de uso y rutas siguen pendientes de desarrollo.
+`consumption_entries` unifica ingestas antiguas y nuevas. Las rutinas y su planificación semanal
+tienen casos de uso y rutas; las operaciones de sesiones y series realizadas siguen pendientes.
 
 Consulta el [procedimiento de migración](migrations.md), las decisiones de compatibilidad y las
 comprobaciones realizadas. La Raspberry no se ha conectado ni actualizado en esta sesión.
@@ -45,10 +45,12 @@ erDiagram
         uuid id PK
         uuid user_id FK
         text name
+        text nutrition_basis
         numeric calories_per_100g
         numeric protein_per_100g
         numeric carbs_per_100g
         numeric fat_per_100g
+        numeric calories_per_unit
         timestamptz archived_at
     }
     nutrition_goal_versions {
@@ -76,8 +78,12 @@ erDiagram
         uuid food_id FK
         int position
         numeric quantity_grams
+        text nutrition_basis
+        numeric portion_count "opcional"
+        numeric portion_grams "opcional"
         text food_name_snapshot
         numeric calories_per_100g_snapshot
+        numeric calories_per_unit_snapshot
         numeric calories_consumed "generado"
     }
 ```
@@ -99,9 +105,23 @@ Al registrar una ingesta, el backend consulta un alimento propio y activo, copia
 por 100 g y guarda los gramos. Los cuatro totales son columnas generadas por PostgreSQL a partir de
 esa misma fila. El cliente no controla los nutrientes de la ingesta.
 
+También puede indicar porciones: `portion_count = 2` y `portion_grams = 29` guardan 58 g.
+Se conservan ambas cantidades en el registro para mostrarlas y editarlas después. Admiten tres
+decimales y el peso total se redondea a 0.001 g. Las restricciones exigen ambas propiedades juntas
+y que su producto redondeado coincida con los gramos. Las entradas por gramos mantienen ambas a NULL.
+
+Con `nutrition_basis = 'per_unit'`, el catálogo conserva nutrientes `*_per_unit` y sus valores por
+100 g son NULL. La ingesta copia esa base y los nutrientes de una unidad; guarda `portion_count`,
+dejando `quantity_grams` y `portion_grams` a NULL. El total generado es unidades × valor por unidad.
+Así, un batido puede consumirse como una unidad sin conocer su peso. La restricción de cada fila
+impide mezclar nutrientes y cantidades de ambas bases. Las ediciones del catálogo no cambian
+la base ni los nutrientes de snapshots anteriores.
+
 Editar el catálogo conserva los valores copiados en las comidas anteriores. Editar únicamente la
-cantidad de una ingesta conserva su copia nutricional y recalcula sus totales. Sustituir el alimento
-es una operación explícita que vuelve a obtener sus valores desde el catálogo.
+cantidad de una ingesta conserva su copia nutricional y recalcula sus totales. La edición actual
+permite corregir cantidades, porciones y fecha. Cambiar la fecha mueve solo esa ingesta y conserva
+su zona horaria; el nuevo instante se marca como estimado. Sustituir el alimento requerirá una
+operación explícita posterior que vuelva a obtener sus valores desde el catálogo.
 
 La cabecera y sus alimentos se crean en una transacción. Borrar una cabecera elimina sus elementos.
 Un alimento que ya tenga referencias se archiva con `archived_at`; su borrado físico está restringido
@@ -171,6 +191,8 @@ LEFT JOIN LATERAL (
 erDiagram
     users ||--o{ exercises : posee
     users ||--o{ workout_routines : configura
+    users ||--o{ weekly_workout_schedule : organiza
+    workout_routines o|--o{ weekly_workout_schedule : asigna
     users ||--o{ workout_sessions : realiza
     workout_routines ||--o{ routine_exercises : planifica
     exercises ||--o{ routine_exercises : referencia
@@ -192,6 +214,12 @@ erDiagram
         uuid user_id FK
         text name
         timestamptz archived_at
+    }
+    weekly_workout_schedule {
+        uuid user_id PK,FK
+        smallint weekday PK
+        uuid routine_id FK "opcional"
+        timestamptz updated_at
     }
     routine_exercises {
         uuid id PK
@@ -242,12 +270,20 @@ erDiagram
 | --- | --- |
 | `exercises` | Catálogo privado de ejercicios de fuerza, cardio o movilidad |
 | `workout_routines` | Una rutina reutilizable, por ejemplo «Día A» |
+| `weekly_workout_schedule` | Asignación recurrente: una rutina propia opcional por día ISO (1 lunes–7 domingo) |
 | `routine_exercises` | Orden, series, rango de repeticiones, carga, duración, distancia y descansos previstos |
 | `workout_sessions` | Una ejecución concreta; puede ser libre, sin rutina |
 | `session_exercises` | Copia del nombre, modalidad y prescripción de cada ejercicio al iniciar la sesión |
 | `workout_sets` | Series reales: pendientes, completadas u omitidas |
 
-Al iniciar una sesión desde una rutina, una transacción copia su nombre y la prescripción a las
+La API guarda la semana completa en una transacción. Una rutina puede repetirse varios días.
+La ausencia de fila o `routine_id = NULL` significa descanso o día sin planificar. Archivar una
+rutina deja sus asignaciones a `NULL` en la misma transacción. La clave foránea compuesta impide
+asignar rutinas ajenas. El plan representa la semana actual recurrente y no guarda versiones
+históricas; la home consulta su asignación para el día de la semana de la fecha seleccionada.
+
+El siguiente caso de uso será registrar sesiones. Al iniciar una sesión desde una rutina, deberá
+usarse una transacción para copiar su nombre y la prescripción a las
 tablas de sesión. También puede crear las series pendientes. Las ediciones posteriores de la
 rutina no alteran esa copia. Este primer diseño prescribe el mismo rango/carga para las series
 de un ejercicio; una prescripción distinta para cada serie puede añadirse después con una tabla específica.

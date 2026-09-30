@@ -23,7 +23,7 @@ pub async fn create(
 ) -> Result<Response, ApiError> {
     let meal = state
         .create_meal_use_case
-        .execute(user.user_id, request.into())
+        .execute(user.user_id, request.try_into()?)
         .await?;
     Ok(ResponseFactory::created(MealResponse::from(meal)))
 }
@@ -46,7 +46,7 @@ pub async fn list(
 ) -> Result<Response, ApiError> {
     let (meals, total) = state
         .list_meals_use_case
-        .execute(user.user_id, query.page, query.per_page)
+        .execute(user.user_id, query.page, query.per_page, query.q)
         .await?;
     Ok(ResponseFactory::paginated(
         meals.into_iter().map(MealResponse::from).collect(),
@@ -63,7 +63,7 @@ pub async fn update(
 ) -> Result<Response, ApiError> {
     let meal = state
         .update_meal_use_case
-        .execute(user.user_id, meal_id, request.into())
+        .execute(user.user_id, meal_id, request.try_into()?)
         .await?;
     Ok(ResponseFactory::ok(MealResponse::from(meal)))
 }

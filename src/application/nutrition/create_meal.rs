@@ -1,39 +1,33 @@
 use crate::application::errors::ApplicationError;
 use crate::domain::{
     errors::DomainError,
-    nutrition::{meal::Meal, repository::MealRepository},
+    nutrition::{
+        meal::{Meal, NutritionBasis},
+        repository::MealRepository,
+    },
 };
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct MealInput {
     pub name: String,
-    pub calories_per_100g: f32,
-    pub protein_per_100g: f32,
-    pub carbs_per_100g: f32,
-    pub fat_per_100g: f32,
+    pub nutrition_basis: NutritionBasis,
+    pub calories: f32,
+    pub protein: f32,
+    pub carbs: f32,
+    pub fat: f32,
 }
 impl MealInput {
     pub fn into_meal(self, id: Uuid, user_id: Uuid) -> Result<Meal, DomainError> {
         let name = self.name.trim();
         if name.is_empty()
             || name.chars().count() > 200
-            || [
-                self.calories_per_100g,
-                self.protein_per_100g,
-                self.carbs_per_100g,
-                self.fat_per_100g,
-            ]
-            .iter()
-            .any(|value| !value.is_finite() || *value < 0.0)
-            || [
-                self.protein_per_100g,
-                self.carbs_per_100g,
-                self.fat_per_100g,
-            ]
-            .iter()
-            .any(|value| *value > 100.0)
-            || self.calories_per_100g >= 100_000.0
+            || [self.calories, self.protein, self.carbs, self.fat]
+                .iter()
+                .any(|value| !value.is_finite() || *value < 0.0 || *value >= 100_000.0)
+            || [self.protein, self.carbs, self.fat]
+                .iter()
+                .any(|value| self.nutrition_basis == NutritionBasis::Per100g && *value > 100.0)
         {
             return Err(DomainError::Validation(
                 "invalid meal name or nutritional values".into(),
@@ -43,10 +37,11 @@ impl MealInput {
             id,
             user_id,
             name: name.to_owned(),
-            calories_per_100g: self.calories_per_100g,
-            protein_per_100g: self.protein_per_100g,
-            carbs_per_100g: self.carbs_per_100g,
-            fat_per_100g: self.fat_per_100g,
+            nutrition_basis: self.nutrition_basis,
+            calories: self.calories,
+            protein: self.protein,
+            carbs: self.carbs,
+            fat: self.fat,
         })
     }
 }

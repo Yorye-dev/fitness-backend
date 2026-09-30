@@ -34,6 +34,7 @@ impl ListMealsUseCase {
         user_id: Uuid,
         page: u32,
         per_page: u32,
+        search: Option<String>,
     ) -> Result<(Vec<Meal>, i64), ApplicationError> {
         if page == 0 || !(1..=100).contains(&per_page) {
             return Err(DomainError::Validation(
@@ -41,9 +42,18 @@ impl ListMealsUseCase {
             )
             .into());
         }
+        let search = search
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if search.is_some_and(|value| value.chars().count() > 200) {
+            return Err(
+                DomainError::Validation("search must not exceed 200 characters".into()).into(),
+            );
+        }
         Ok(self
             .meals
-            .get_meals_paginated(&user_id, page, per_page)
+            .get_meals_paginated(&user_id, page, per_page, search)
             .await?)
     }
 }

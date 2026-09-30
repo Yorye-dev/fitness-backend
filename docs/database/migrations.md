@@ -2,7 +2,7 @@
 
 ## Estado
 
-Las migraciones `0001` a `0004` están aplicadas en el PostgreSQL de desarrollo de Windows.
+Las migraciones `0001` a `0007` están aplicadas en el PostgreSQL de desarrollo de Windows.
 La ejecución se hizo con el arranque del backend y quedó registrada en `_sqlx_migrations`.
 La versión `0001_initial_schema.sql` se conserva sin modificaciones.
 
@@ -11,8 +11,11 @@ La versión `0001_initial_schema.sql` se conserva sin modificaciones.
 | `0002_users_and_foods.sql` | Nuevas columnas y restricciones de usuarios; catálogo decimal de alimentos y copia desde `meals` |
 | `0003_nutrition_diary.sql` | Diario, snapshots, consumos generados, objetivos por fecha y traslado de tablas antiguas a `legacy` |
 | `0004_workout_tracking.sql` | Ejercicios, rutinas, ejercicios planificados, sesiones, ejercicios de sesión y series |
+| `0005_consumption_portions.sql` | Porciones opcionales, restricciones de peso y ampliación de `consumption_entries`; conserva los valores existentes |
+| `0006_unit_based_foods.sql` | Alimentos y snapshots por unidad, gramos opcionales, restricciones de base y recreación transaccional de totales generados/vistas |
+| `0007_weekly_workout_schedule.sql` | Plan recurrente de lunes a domingo, rutina opcional y propiedad mediante clave foránea compuesta |
 
-El resultado contiene 11 tablas de negocio en `public`, 3 tablas históricas en `legacy`, las vistas
+El resultado contiene 12 tablas de negocio en `public`, 3 tablas históricas en `legacy`, las vistas
 `consumption_entries` / `daily_nutrition_totals` y la tabla interna `_sqlx_migrations`.
 
 ## Actualización en Windows, Linux o Raspberry
@@ -36,6 +39,8 @@ Una migración que ya se haya aplicado no debe editarse: las correcciones se añ
 - Las tres tablas anteriores se mueven a `legacy`, conservando los consumos originales y sus referencias.
 - Las consultas del backend combinan consumos nuevos y antiguos a través de `consumption_entries`.
   La eliminación explícita de una ingesta también puede eliminar una entrada histórica propia.
+  La edición puede cambiar su fecha y cantidad; conserva los totales anteriores si solo cambia la
+  fecha, o los escala proporcionalmente cuando cambia la cantidad. Puede guardar unidades y su peso.
 - Los objetivos antiguos se importan como una versión de origen `migration`. Su fecha de inicio se
   toma de la primera ingesta conocida o del día de migración; no representa un historial recuperado.
 - Los datos incompatibles con las nuevas restricciones hacen fallar la migración para que se corrijan
@@ -57,7 +62,8 @@ eliminado ningún volumen ni se han creado cuentas o alimentos de ejemplo en el 
   estimado a partir del perfil del contrato anterior; esa estimación no es un dato histórico guardado.
 - La persistencia usa NUMERIC. Los adaptadores conservan el f32 existente de dominio/DTO mediante
   conversiones explícitas; cambiar todo el dominio a tipos decimales es una tarea posterior.
-- El esquema de entrenamiento está listo. Todavía no se han implementado sus casos de uso ni rutas.
+- Las rutinas y el plan semanal tienen casos de uso y rutas bajo `/api/training`. Las tablas para
+  sesiones y series están preparadas; sus operaciones se implementarán en el siguiente caso de uso.
 
 ## Copia previa y recuperación
 
@@ -72,7 +78,7 @@ Para recuperar una versión anterior, restaurar ese dump en una base separada us
 y ejecutar el backend correspondiente a `0001` contra esa base. Comprobar la restauración antes de
 cambiar la configuración del servicio. No se han creado migraciones automáticas de retroceso.
 
-## Comprobaciones realizadas
+## Comprobaciones realizadas hasta 0004
 
 - `cargo fmt --check`: correcto.
 - `cargo check --all-targets --locked`: correcto.
@@ -84,3 +90,29 @@ cambiar la configuración del servicio. No se han creado migraciones automática
 La suite crea bases temporales desde cero con todas las migraciones. La actualización local también
 partió de tablas vacías. Estos resultados no acreditan una migración de historiales reales ni una
 ejecución en ARM/Raspberry.
+
+### Actualización 0005
+
+`cargo fmt`, `cargo check --all-targets --locked`, `cargo clippy --all-targets --locked -- -D warnings`
+y `cargo build --locked` completados. `_sqlx_migrations` confirma versiones 1 a 5 con `success = true`
+en desarrollo. Los tres servicios están saludables tras el reinicio. No se ha vuelto a ejecutar
+la suite de tests para esta actualización; sus resultados anteriores corresponden a 0004.
+
+### Actualización 0006
+
+Compilación de backend y frontend, Clippy y Oxlint correctos. La migración 6 figura con
+`success = true` en desarrollo y el backend ha arrancado correctamente. Los valores previos siguen
+en la base por 100 g; los registros por unidad guardan cantidades sin inventar pesos. No se ha
+ejecutado la suite de tests ni se han creado ingestas de prueba en la base del usuario.
+
+### Actualización 0007
+
+`cargo check --all-targets --locked`, `cargo clippy --all-targets --locked -- -D warnings` y
+`cargo build --locked` completados. El frontend compila con TypeScript/Vite y pasa Oxlint.
+`_sqlx_migrations` confirma versiones 1 a 7 con `success = true` en desarrollo; backend, base de
+datos y frontend están saludables. No se ha ejecutado la suite de tests ni se han creado rutinas
+de prueba en la base del usuario. Queda pendiente comprobar el flujo completo desde la interfaz.
+
+La migración añade únicamente la tabla de planificación semanal y sus restricciones, índice y
+trigger; no modifica rutinas o sesiones existentes ni precarga ejercicios. Los días sin asignación
+se devuelven como descanso o sin planificar. Las migraciones ya aplicadas se mantienen intactas.

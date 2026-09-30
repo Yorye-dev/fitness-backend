@@ -29,10 +29,11 @@ async fn seed(
             id: Uuid::new_v4(),
             user_id,
             name: "Oats".into(),
-            calories_per_100g: calories,
-            protein_per_100g: protein,
-            carbs_per_100g: carbs,
-            fat_per_100g: fat,
+            nutrition_basis: fitness_backend::domain::nutrition::meal::NutritionBasis::Per100g,
+            calories,
+            protein,
+            carbs,
+            fat,
         })
         .await
         .unwrap();
@@ -42,7 +43,9 @@ async fn seed(
             user_id,
             date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
             meal_id: meal.id,
-            quantity_grams: 100.0,
+            quantity_grams: Some(100.0),
+            portion_count: None,
+            portion_grams: None,
             calories_consumed: calories,
             protein_consumed: protein,
             carbs_consumed: carbs,
